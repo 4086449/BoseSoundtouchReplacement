@@ -20,6 +20,7 @@ volumes:
   mosquitto_data:
   mosquitto_log:
   gerbera_db:
+  gerbera_run:
 
 services:
   homeassistant:
@@ -102,9 +103,11 @@ services:
     environment:
       - TZ=${TZ:-Europe/Brussels}
     volumes:
-      # The gerbera image reads config.xml from /var/run/gerbera by default.
-      # Mount writable so the entrypoint can chown it to the gerbera user.
-      - ./config/gerbera/config.xml:/var/run/gerbera/config.xml
+      # Let Gerbera auto-generate its own config.xml on first start inside the
+      # named volume. We tweak it later via the web UI (or by editing the file
+      # in the volume). Trying to ship a hand-written config.xml is fragile -
+      # this image's paths differ from upstream defaults.
+      - gerbera_run:/var/run/gerbera
       - gerbera_db:/var/lib/gerbera
 
   # Optional: fake SoundTouch device for flow development.
