@@ -1,0 +1,29 @@
+{
+  "_comment": "Room -> SoundTouch device map. Add rows as you bring more speakers online. 'host' = device IP. 'role' is informational; the master is chosen at runtime (prefer mains-powered devices, see Node-RED 'expand_rooms' function). 'mac' will be auto-filled from /info on first poll.",
+  "rooms": [
+    {
+      "id": "living_room",
+      "name": "Living room",
+      "host": "10.0.0.199",
+      "port": 8090,
+      "role": "portable",
+      "mac": null
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "host": "10.0.0.200",
+      "port": 8090,
+      "role": "mains",
+      "mac": null
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "host": "10.0.0.201",
+      "port": 8090,
+      "role": "mains",
+      "mac": null
+    }
+  ]
+}

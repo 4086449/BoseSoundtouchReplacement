@@ -1,0 +1,54 @@
+title: SoundTouch
+views:
+  - title: Control
+    path: control
+    icon: mdi:speaker-multiple
+    cards:
+      - type: entities
+        title: Rooms
+        entities:
+          - input_boolean.st_room_living_room
+          - input_boolean.st_room_kitchen
+          - input_boolean.st_room_bedroom
+      - type: entities
+        title: Policy
+        entities:
+          - input_select.st_failure_policy
+      - type: grid
+        title: Presets
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: '1 - VRT Radio 1'
+            icon: mdi:numeric-1-box
+            tap_action: { action: call-service, service: script.st_preset_1 }
+          - type: button
+            name: '2 - Radio 2 Limburg'
+            icon: mdi:numeric-2-box
+            tap_action: { action: call-service, service: script.st_preset_2 }
+          - type: button
+            name: '3 - Studio Brussel'
+            icon: mdi:numeric-3-box
+            tap_action: { action: call-service, service: script.st_preset_3 }
+          - type: button
+            name: '4 - Joe'
+            icon: mdi:numeric-4-box
+            tap_action: { action: call-service, service: script.st_preset_4 }
+          - type: button
+            name: '5 - Nostalgie'
+            icon: mdi:numeric-5-box
+            tap_action: { action: call-service, service: script.st_preset_5 }
+          - type: button
+            name: '6 - JOE Gold'
+            icon: mdi:numeric-6-box
+            tap_action: { action: call-service, service: script.st_preset_6 }
+      - type: entities
+        title: Maintenance
+        entities:
+          - entity: script.st_rebuild_library
+            name: Rebuild Gerbera radio library
+            icon: mdi:radio-tower
+          - entity: script.st_push_presets
+            name: Push presets to device (IR remote)
+            icon: mdi:remote
