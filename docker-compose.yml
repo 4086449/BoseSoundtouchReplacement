@@ -19,7 +19,6 @@ volumes:
   nodered_data:
   mosquitto_data:
   mosquitto_log:
-  gerbera_config:
   gerbera_db:
 
 services:
@@ -103,10 +102,9 @@ services:
     environment:
       - TZ=${TZ:-Europe/Brussels}
     volumes:
-      - ./config/gerbera:/config:ro
-      - gerbera_config:/var/run/gerbera
+      # The gerbera image reads config.xml from /var/run/gerbera by default.
+      - ./config/gerbera/config.xml:/var/run/gerbera/config.xml:ro
       - gerbera_db:/var/lib/gerbera
-    command: ["--config", "/config/config.xml"]
 
   # Optional: fake SoundTouch device for flow development.
   # Enable with: docker compose --profile mock up -d
