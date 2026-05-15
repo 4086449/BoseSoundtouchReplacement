@@ -18,6 +18,7 @@
     </ui>
     <name>SoundTouch Radio Relay</name>
     <udn>uuid:5f8d5a8a-soundtouch-radio-relay-0001</udn>
+    <webroot>/usr/local/share/gerbera/web</webroot>
     <storage>
       <sqlite3 enabled="yes">
         <database-file>/var/lib/gerbera/gerbera.db</database-file>
