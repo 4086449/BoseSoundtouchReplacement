@@ -103,7 +103,8 @@ services:
       - TZ=${TZ:-Europe/Brussels}
     volumes:
       # The gerbera image reads config.xml from /var/run/gerbera by default.
-      - ./config/gerbera/config.xml:/var/run/gerbera/config.xml:ro
+      # Mount writable so the entrypoint can chown it to the gerbera user.
+      - ./config/gerbera/config.xml:/var/run/gerbera/config.xml
       - gerbera_db:/var/lib/gerbera
 
   # Optional: fake SoundTouch device for flow development.

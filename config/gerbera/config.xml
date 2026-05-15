@@ -2,11 +2,11 @@
 <!--
   Gerbera minimal config for SoundTouch Radio Relay.
 
-  Items are added at runtime by the Node-RED "rebuild gerbera library" flow
-  via Gerbera's UI/REST API; no persistent on-disk media library is required.
-
-  References for upstream defaults:
-    https://docs.gerbera.io/en/stable/config-overview.html
+  Items are added at runtime by the Node-RED "rebuild gerbera library" flow.
+  We deliberately do NOT override <home>, <webroot>, or <storage> paths -
+  Gerbera 3.x in the official image picks correct defaults for those, and
+  hard-coding them broke startup ("Directory '/usr/share/gerbera/web' does
+  not exist").
 -->
 <config version="2"
         xmlns="http://mediatomb.cc/config/2"
@@ -18,22 +18,10 @@
     </ui>
     <name>SoundTouch Radio Relay</name>
     <udn>uuid:5f8d5a8a-soundtouch-radio-relay-0001</udn>
-    <home>/var/lib/gerbera</home>
-    <webroot>/usr/share/gerbera/web</webroot>
-    <storage>
-      <sqlite3 enabled="yes">
-        <database-file>gerbera.db</database-file>
-      </sqlite3>
-    </storage>
     <protocolInfo extend="yes"/>
   </server>
 
   <import hidden-files="no">
-    <!-- External-URL items are what we expose to the Bose: each is an internet
-         radio stream URL wrapped as a DLNA item. -->
-    <online-content>
-      <!-- Disabled providers; we add items via the REST API instead. -->
-    </online-content>
     <mappings>
       <extension-mimetype ignore-unknown="no">
         <map from="mp3" to="audio/mpeg"/>
@@ -48,3 +36,4 @@
     </mappings>
   </import>
 </config>
+
