@@ -20,7 +20,7 @@
     <udn>uuid:5f8d5a8a-soundtouch-radio-relay-0001</udn>
     <storage>
       <sqlite3 enabled="yes">
-        <database-file>gerbera.db</database-file>
+        <database-file>/var/lib/gerbera/gerbera.db</database-file>
       </sqlite3>
     </storage>
     <protocolInfo extend="yes"/>
