@@ -69,7 +69,7 @@ services:
     environment:
       - TZ=${TZ:-Europe/Brussels}
     volumes:
-      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     ports:
@@ -109,7 +109,14 @@ services:
       # this image's paths differ from upstream defaults.
       - gerbera_run:/var/run/gerbera
       - gerbera_db:/var/lib/gerbera
-
+      # - ./gerbera/config:/var/run/gerbera
+      - ./gerbera/content:/mnt/content:ro
+    command:
+      - --port
+      - "49494"
+      - --config
+      - /var/run/gerbera/config.xml
+      
   # Optional: fake SoundTouch device for flow development.
   # Enable with: docker compose --profile mock up -d
   wiremock:
