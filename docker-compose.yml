@@ -112,11 +112,11 @@ services:
       # - ./gerbera/config:/var/run/gerbera
       - ./gerbera/content:/mnt/content:ro
     command:
-      - --port
+      - -p
       - "49494"
-      - --config
+      - -c
       - /var/run/gerbera/config.xml
-      
+
   # Optional: fake SoundTouch device for flow development.
   # Enable with: docker compose --profile mock up -d
   wiremock:
