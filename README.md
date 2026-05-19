@@ -21,6 +21,8 @@ Expected location on the Pi:
 ```text
 /home/pi/soundtouch-radio
 ├── README.md
+├── .env
+├── .env.example
 ├── config.py
 ├── config.sh
 ├── install-services.sh
@@ -88,33 +90,24 @@ sudo apt install -y python3 python3-venv curl
 
 ## 3. Configure IP addresses
 
-Edit both config files.
+Edit the `.env` file in the project root:
 
 ```bash
-nano /home/pi/soundtouch-radio/config.py
+nano /home/pi/soundtouch-radio/.env
 ```
 
 Set:
 
-```python
-BOSE_IP = "NEW_BOSE_IP"
-PI_IP = "NEW_PI_IP"
+```env
+BOSE_IP=NEW_BOSE_IP
+PI_IP=NEW_PI_IP
+PROXY_PORT=8091
+PROXY_BIND_IP=0.0.0.0
+SPEAKER_NAME=Living Room
+ACTIVE_ZONE_NAME=
 ```
 
-Then:
-
-```bash
-nano /home/pi/soundtouch-radio/config.sh
-```
-
-Set:
-
-```sh
-BOSE_IP="NEW_BOSE_IP"
-PI_IP="NEW_PI_IP"
-```
-
-`PROXY_BIND_IP` in `config.py` defaults to `0.0.0.0`, which means the proxy listens on all Pi interfaces. That is usually easier to replicate than binding to a specific static IP.
+Both `config.py` and `config.sh` read from this file automatically. You no longer need to edit them separately.
 
 ## 4. Install Python dependency
 
@@ -393,11 +386,10 @@ before running `install-services.sh`.
 
 ## 12. Files to edit when duplicating
 
-Only these should need IP updates:
+Only this file needs IP updates:
 
 ```text
-/home/pi/soundtouch-radio/config.py
-/home/pi/soundtouch-radio/config.sh
+/home/pi/soundtouch-radio/.env
 ```
 
 Then restart:
@@ -436,13 +428,13 @@ ports:
 
 This works because the project uses fixed IP addresses and direct TCP/HTTP calls. It does not rely on UPnP multicast discovery.
 
-Before running Docker, make sure `config.py` is configured like this:
+Before running Docker, make sure `.env` is configured:
 
-```python
-BOSE_IP = "NEW_BOSE_IP"
-PI_IP = "NEW_PI_IP"
-PROXY_BIND_IP = "0.0.0.0"
-PROXY_PORT = 8091
+```env
+BOSE_IP=NEW_BOSE_IP
+PI_IP=NEW_PI_IP
+PROXY_BIND_IP=0.0.0.0
+PROXY_PORT=8091
 ```
 
 Important distinction:
@@ -507,7 +499,7 @@ Start the full Docker stack:
 
 ```bash
 cd /home/pi/soundtouch-radio
-PI_IP=10.0.0.241 BOSE_IP=10.0.0.199 docker compose up -d --build
+docker compose up -d --build
 ```
 
 Open:

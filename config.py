@@ -1,18 +1,32 @@
 # Shared configuration for the Python services.
-# Change these IPs when deploying to another network.
+# All network settings are loaded from .env (or environment variables).
 
-BOSE_IP = "10.0.0.199"
-PI_IP = "10.0.0.241"
-SPEAKER_NAME = "Living Room"
+import os
+from pathlib import Path
+
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line or _line.startswith("#"):
+                continue
+            _key, _, _val = _line.partition("=")
+            if _key and _ == "=":
+                os.environ.setdefault(_key.strip(), _val.strip())
+
+BOSE_IP = os.environ.get("BOSE_IP", "10.0.0.199")
+PI_IP = os.environ.get("PI_IP", "10.0.0.241")
+SPEAKER_NAME = os.environ.get("SPEAKER_NAME", "Living Room")
 
 # Optional static zone display name for the single-speaker bridge.
 # Node-RED supports dynamic zones; this is only used by bose-preset-bridge.py.
-ACTIVE_ZONE_NAME = ""
+ACTIVE_ZONE_NAME = os.environ.get("ACTIVE_ZONE_NAME", "")
 
 # Bind proxy to all interfaces by default, which is Docker-friendly.
 # The Bose must still receive PI_IP in stream/logo URLs.
-PROXY_BIND_IP = "0.0.0.0"
-PROXY_PORT = 8091
+PROXY_BIND_IP = os.environ.get("PROXY_BIND_IP", "0.0.0.0")
+PROXY_PORT = int(os.environ.get("PROXY_PORT", "8091"))
 
 # Subtitle priority used by the bridge when building Bose UPnP metadata.
 # Live metadata is a future extension: the proxy currently exposes placeholder

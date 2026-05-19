@@ -3,14 +3,16 @@ services:
     build: .
     container_name: soundtouch-radio-proxy
     restart: unless-stopped
+    env_file: .env
     ports:
-      - "8091:8091"
+      - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
     command: python /app/soundtouch-proxy/radio-proxy.py
 
   bose-bridge:
     build: .
     container_name: soundtouch-bose-bridge
     restart: unless-stopped
+    env_file: .env
     depends_on:
       - radio-proxy
     command: python /app/bose-bridge/bose-preset-bridge.py
@@ -21,6 +23,7 @@ services:
     restart: unless-stopped
     ports:
       - "1880:1880"
+    env_file: .env
     environment:
       - TZ=Europe/Amsterdam
       - PI_IP=${PI_IP:-10.0.0.241}

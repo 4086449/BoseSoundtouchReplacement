@@ -13,19 +13,19 @@ proxy container -> internet      # follows broadcaster redirects and streams aud
 
 ## 1. Edit the IP configuration
 
-Edit `config.py` before building/running:
+Edit `.env` in the project root before building/running:
 
-```python
-BOSE_IP = "10.0.0.199"
-PI_IP = "10.0.0.241"
-PROXY_BIND_IP = "0.0.0.0"
-PROXY_PORT = 8091
+```env
+BOSE_IP=10.0.0.199
+PI_IP=10.0.0.241
+PROXY_BIND_IP=0.0.0.0
+PROXY_PORT=8091
 ```
 
 For Docker bridge networking, keep:
 
-```python
-PROXY_BIND_IP = "0.0.0.0"
+```env
+PROXY_BIND_IP=0.0.0.0
 ```
 
 The Bose must still receive URLs using the Pi's real LAN IP, for example:
