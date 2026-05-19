@@ -1,0 +1,386 @@
+[
+  {
+    "id": "flow_soundtouch",
+    "type": "tab",
+    "label": "SoundTouch Radio Dashboard",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "ui_tab_soundtouch",
+    "type": "ui_tab",
+    "name": "SoundTouch",
+    "icon": "dashboard",
+    "order": 1,
+    "disabled": false,
+    "hidden": false
+  },
+  {
+    "id": "ui_group_main",
+    "type": "ui_group",
+    "name": "Radio",
+    "tab": "ui_tab_soundtouch",
+    "order": 1,
+    "disp": true,
+    "width": "12",
+    "collapse": false,
+    "className": ""
+  },
+  {
+    "id": "ui_template_dashboard",
+    "type": "ui_template",
+    "z": "flow_soundtouch",
+    "group": "ui_group_main",
+    "name": "SoundTouch dashboard",
+    "order": 1,
+    "width": "12",
+    "height": "0",
+    "format": "\n<style>\n  .st-wrap { font-family: system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }\n  .st-card { padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }\n  .st-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }\n  .st-row > * { margin: 0; }\n  .st-btn { padding: 8px 12px; border: 1px solid #bbb; border-radius: 6px; background: white; cursor: pointer; }\n  .st-btn.primary { background: #263238; color: white; border-color: #263238; }\n  .st-btn.warn { background: #fff3e0; }\n  .st-input, .st-select, .st-textarea { padding: 7px; border: 1px solid #bbb; border-radius: 5px; min-width: 160px; }\n  .st-textarea { width: 100%; min-height: 145px; font-family: monospace; box-sizing: border-box; }\n  .st-status { white-space: pre-wrap; background: #111; color: #eee; padding: 10px; border-radius: 6px; max-height: 240px; overflow: auto; }\n</style>\n<div class=\"st-wrap\">\n  <div class=\"st-card\">\n    <h3>SoundTouch Radio Control</h3>\n    <div class=\"st-row\">\n      <label>Target</label>\n      <select id=\"target\" class=\"st-select\"></select>\n      <label>Station</label>\n      <select id=\"station\" class=\"st-select\"></select>\n      <button class=\"st-btn primary\" onclick=\"playSelected()\">Play selected</button>\n      <button class=\"st-btn\" onclick=\"statusSelected()\">Status</button>\n    </div>\n    <div class=\"st-row\" id=\"presetButtons\"></div>\n  </div>\n\n  <div class=\"st-card\">\n    <h3>Speaker controls</h3>\n    <div class=\"st-row\">\n      <button class=\"st-btn\" onclick=\"sendKey('VOLUME_UP')\">Volume +</button>\n      <button class=\"st-btn\" onclick=\"sendKey('VOLUME_DOWN')\">Volume -</button>\n      <button class=\"st-btn\" onclick=\"sendKey('MUTE')\">Mute</button>\n      <button class=\"st-btn\" onclick=\"sendKey('PLAY_PAUSE')\">Play/Pause</button>\n      <button class=\"st-btn warn\" onclick=\"sendKey('POWER')\">Power</button>\n    </div>\n  </div>\n\n  <div class=\"st-card\">\n    <h3>Custom stream</h3>\n    <div class=\"st-row\">\n      <input id=\"customName\" class=\"st-input\" value=\"Custom Stream\" placeholder=\"Display name\">\n      <input id=\"customUrl\" class=\"st-input\" style=\"flex:1; min-width: 300px;\" placeholder=\"https://example.com/live.mp3\">\n      <label><input id=\"customProxy\" type=\"checkbox\" checked> proxy custom URL via Pi</label>\n      <button class=\"st-btn primary\" onclick=\"playCustom()\">Play custom</button>\n    </div>\n  </div>\n\n  <div class=\"st-card\">\n    <h3>Zones</h3>\n    <div class=\"st-row\">\n      <button class=\"st-btn\" onclick=\"applySelectedZone()\">Apply selected zone</button>\n      <button class=\"st-btn warn\" onclick=\"dissolveSelected()\">Dissolve selected zone/speaker</button>\n    </div>\n    <p>Playing to a zone creates/updates that Bose group first, then plays the station on the zone master.</p>\n  </div>\n\n  <div class=\"st-card\">\n    <h3>Dynamic configuration</h3>\n    <p><strong>Display subtitle priority:</strong> fresh live metadata, then active zone, then speaker name, then station owner. Live metadata endpoints are placeholders for now, so it falls back automatically.</p>\n\n    <p>Change speakers and zones here. Device IDs are needed for Bose zone grouping. Get a device ID with <code>curl http://BOSE_IP:8090/info</code>.</p>\n    <h4>Speakers JSON</h4>\n    <textarea id=\"speakersJson\" class=\"st-textarea\"></textarea>\n    <h4>Zones JSON</h4>\n    <textarea id=\"zonesJson\" class=\"st-textarea\"></textarea>\n    <div class=\"st-row\">\n      <button class=\"st-btn primary\" onclick=\"saveConfig()\">Save config</button>\n      <button class=\"st-btn\" onclick=\"loadConfig()\">Reload config</button>\n    </div>\n  </div>\n\n  <div class=\"st-card\">\n    <h3>Status</h3>\n    <pre id=\"status\" class=\"st-status\">Loading...</pre>\n  </div>\n</div>\n\n<script>\nlet currentConfig = null;\n\nfunction logStatus(value) {\n  const el = document.getElementById('status');\n  if (typeof value === 'string') el.textContent = value;\n  else el.textContent = JSON.stringify(value, null, 2);\n}\n\nasync function api(path, method='GET', body=null) {\n  const opts = { method, headers: {} };\n  if (body !== null) {\n    opts.headers['Content-Type'] = 'application/json';\n    opts.body = JSON.stringify(body);\n  }\n  const res = await fetch(path, opts);\n  const text = await res.text();\n  let data;\n  try { data = JSON.parse(text); } catch { data = text; }\n  if (!res.ok) throw data;\n  return data;\n}\n\nfunction renderConfig(cfg) {\n  currentConfig = cfg;\n  document.getElementById('speakersJson').value = JSON.stringify(cfg.speakers || {}, null, 2);\n  document.getElementById('zonesJson').value = JSON.stringify(cfg.zones || {}, null, 2);\n\n  const target = document.getElementById('target');\n  target.innerHTML = '';\n  Object.entries(cfg.speakers || {}).forEach(([id, sp]) => {\n    const opt = document.createElement('option');\n    opt.value = 'speaker:' + id;\n    opt.textContent = 'Speaker: ' + (sp.name || id);\n    target.appendChild(opt);\n  });\n  Object.entries(cfg.zones || {}).forEach(([id, z]) => {\n    const opt = document.createElement('option');\n    opt.value = 'zone:' + id;\n    opt.textContent = 'Zone: ' + (z.name || id);\n    target.appendChild(opt);\n  });\n\n  const station = document.getElementById('station');\n  station.innerHTML = '';\n  Object.entries(cfg.stations || {}).forEach(([id, st]) => {\n    const opt = document.createElement('option');\n    opt.value = id;\n    opt.textContent = st.name || id;\n    station.appendChild(opt);\n  });\n\n  const buttons = document.getElementById('presetButtons');\n  buttons.innerHTML = '';\n  Object.entries(cfg.presets || {}).forEach(([preset, stationId]) => {\n    const st = cfg.stations[stationId] || { name: stationId };\n    const btn = document.createElement('button');\n    btn.className = 'st-btn';\n    btn.textContent = preset + ': ' + st.name;\n    btn.onclick = () => playStation(stationId);\n    buttons.appendChild(btn);\n  });\n}\n\nasync function loadConfig() {\n  try {\n    const cfg = await api('/soundtouch/api/config');\n    renderConfig(cfg);\n    logStatus(cfg);\n  } catch (e) {\n    logStatus(e);\n  }\n}\n\nasync function saveConfig() {\n  try {\n    const speakers = JSON.parse(document.getElementById('speakersJson').value || '{}');\n    const zones = JSON.parse(document.getElementById('zonesJson').value || '{}');\n    const cfg = await api('/soundtouch/api/config', 'POST', { speakers, zones });\n    renderConfig(cfg);\n    logStatus({ saved: true, config: cfg });\n  } catch (e) {\n    logStatus(e);\n  }\n}\n\nasync function playStation(stationId) {\n  try {\n    const target = document.getElementById('target').value;\n    const data = await api('/soundtouch/api/play', 'POST', { target, station: stationId });\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nasync function playSelected() {\n  await playStation(document.getElementById('station').value);\n}\n\nasync function playCustom() {\n  try {\n    const target = document.getElementById('target').value;\n    const name = document.getElementById('customName').value || 'Custom Stream';\n    const customUrl = document.getElementById('customUrl').value;\n    const useProxy = document.getElementById('customProxy').checked;\n    const data = await api('/soundtouch/api/play', 'POST', { target, customUrl, name, useProxy });\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nasync function sendKey(key) {\n  try {\n    const target = document.getElementById('target').value;\n    const data = await api('/soundtouch/api/key', 'POST', { target, key });\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nasync function applySelectedZone() {\n  try {\n    const target = document.getElementById('target').value;\n    const data = await api('/soundtouch/api/zone/apply', 'POST', { target });\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nasync function dissolveSelected() {\n  try {\n    const target = document.getElementById('target').value;\n    const data = await api('/soundtouch/api/zone/dissolve', 'POST', { target });\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nasync function statusSelected() {\n  try {\n    const target = document.getElementById('target').value;\n    const data = await api('/soundtouch/api/status?target=' + encodeURIComponent(target));\n    logStatus(data);\n  } catch (e) { logStatus(e); }\n}\n\nloadConfig();\n</script>\n",
+    "storeOutMessages": false,
+    "fwdInMessages": false,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 220,
+    "y": 80,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "http_get config_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "get config",
+    "url": "/soundtouch/api/config",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 160,
+    "wires": [
+      [
+        "fn_get config"
+      ]
+    ]
+  },
+  {
+    "id": "fn_get config",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "get config",
+    "func": "function defaults() {\n        const piIp = env.get('PI_IP') || '10.0.0.241';\n        const boseIp = env.get('DEFAULT_BOSE_IP') || '10.0.0.199';\n        return {\n            piIp,\n            proxyPort: 8091,\n            liveMetadataMaxAgeSeconds: 45,\n            displaySubtitlePriority: ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'],\n            speakers: {\n                living: { name: 'Living Room', ip: boseIp, device_id: '', enabled: true }\n            },\n            zones: {\n                all: { name: 'All speakers', master: 'living', members: [] }\n            },\n            stations: {\n                radio1: { name: 'VRT Radio 1', owner: 'VRT', path: '/radio1.mp3', logo: '/logos/radio1.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/radio1.json' } },\n                'radio2-limburg': { name: 'VRT Radio 2 Limburg', owner: 'VRT', path: '/radio2-limburg.mp3', logo: '/logos/radio2-limburg.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/radio2-limburg.json' } },\n                stubru: { name: 'VRT Studio Brussel', owner: 'VRT', path: '/stubru.mp3', logo: '/logos/stubru.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/stubru.json' } },\n                joe: { name: 'Joe', owner: 'DPG Media', path: '/joe.mp3', logo: '/logos/joe.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/joe.json' } },\n                nostalgie: { name: 'Nostalgie Vlaanderen', owner: 'Nostalgie', path: '/nostalgie.mp3', logo: '/logos/nostalgie.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/nostalgie.json' } },\n                'joe-gold': { name: 'JOE Gold', owner: 'DPG Media', path: '/joe-gold.mp3', logo: '/logos/joe-gold.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/joe-gold.json' } }\n            },\n            presets: {\n                1: 'radio1',\n                2: 'radio2-limburg',\n                3: 'stubru',\n                4: 'joe',\n                5: 'nostalgie',\n                6: 'joe-gold'\n            }\n        };\n}\n\n\nlet cfg = global.get('soundtouchConfig');\nif (!cfg) {\n    cfg = defaults();\n    global.set('soundtouchConfig', cfg);\n}\nmsg.payload = cfg;\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 160,
+    "wires": [
+      [
+        "http_get config_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_get config_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "http_save config_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "save config",
+    "url": "/soundtouch/api/config",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 220,
+    "wires": [
+      [
+        "fn_save config"
+      ]
+    ]
+  },
+  {
+    "id": "fn_save config",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "save config",
+    "func": "function defaults() {\n        const piIp = env.get('PI_IP') || '10.0.0.241';\n        const boseIp = env.get('DEFAULT_BOSE_IP') || '10.0.0.199';\n        return {\n            piIp,\n            proxyPort: 8091,\n            liveMetadataMaxAgeSeconds: 45,\n            displaySubtitlePriority: ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'],\n            speakers: {\n                living: { name: 'Living Room', ip: boseIp, device_id: '', enabled: true }\n            },\n            zones: {\n                all: { name: 'All speakers', master: 'living', members: [] }\n            },\n            stations: {\n                radio1: { name: 'VRT Radio 1', owner: 'VRT', path: '/radio1.mp3', logo: '/logos/radio1.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/radio1.json' } },\n                'radio2-limburg': { name: 'VRT Radio 2 Limburg', owner: 'VRT', path: '/radio2-limburg.mp3', logo: '/logos/radio2-limburg.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/radio2-limburg.json' } },\n                stubru: { name: 'VRT Studio Brussel', owner: 'VRT', path: '/stubru.mp3', logo: '/logos/stubru.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/stubru.json' } },\n                joe: { name: 'Joe', owner: 'DPG Media', path: '/joe.mp3', logo: '/logos/joe.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/joe.json' } },\n                nostalgie: { name: 'Nostalgie Vlaanderen', owner: 'Nostalgie', path: '/nostalgie.mp3', logo: '/logos/nostalgie.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/nostalgie.json' } },\n                'joe-gold': { name: 'JOE Gold', owner: 'DPG Media', path: '/joe-gold.mp3', logo: '/logos/joe-gold.png', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/joe-gold.json' } }\n            },\n            presets: {\n                1: 'radio1',\n                2: 'radio2-limburg',\n                3: 'stubru',\n                4: 'joe',\n                5: 'nostalgie',\n                6: 'joe-gold'\n            }\n        };\n}\n\n\nconst existing = global.get('soundtouchConfig') || defaults();\nconst body = msg.payload || {};\nconst cfg = {\n    ...existing,\n    piIp: existing.piIp || env.get('PI_IP') || '10.0.0.241',\n    proxyPort: existing.proxyPort || 8091,\n    displaySubtitlePriority: body.displaySubtitlePriority || existing.displaySubtitlePriority || ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'],\n    liveMetadataMaxAgeSeconds: body.liveMetadataMaxAgeSeconds || existing.liveMetadataMaxAgeSeconds || 45,\n    speakers: body.speakers || existing.speakers || {},\n    zones: body.zones || existing.zones || {},\n    stations: body.stations || existing.stations || defaults().stations,\n    presets: body.presets || existing.presets || defaults().presets,\n};\nglobal.set('soundtouchConfig', cfg);\nmsg.payload = cfg;\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 220,
+    "wires": [
+      [
+        "http_save config_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_save config_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "http_play station_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "play station",
+    "url": "/soundtouch/api/play",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 280,
+    "wires": [
+      [
+        "fn_play station"
+      ]
+    ]
+  },
+  {
+    "id": "fn_play station",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "play station",
+    "func": "\nfunction getCfg() {\n    let cfg = global.get('soundtouchConfig');\n    if (!cfg) {\n        const piIp = env.get('PI_IP') || '10.0.0.241';\n        const boseIp = env.get('DEFAULT_BOSE_IP') || '10.0.0.199';\n        cfg = {\n            piIp,\n            proxyPort: 8091,\n            liveMetadataMaxAgeSeconds: 45,\n            displaySubtitlePriority: ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'],\n            speakers: { living: { name: 'Living Room', ip: boseIp, device_id: '', enabled: true } },\n            zones: {},\n            stations: {\n                radio1: { name: 'VRT Radio 1', owner: 'VRT', path: '/radio1.mp3', logo: '/logos/radio1.png', live_metadata: { enabled: true, endpoint: '/metadata/radio1.json' } },\n                'radio2-limburg': { name: 'VRT Radio 2 Limburg', owner: 'VRT', path: '/radio2-limburg.mp3', logo: '/logos/radio2-limburg.png', live_metadata: { enabled: true, endpoint: '/metadata/radio2-limburg.json' } },\n                stubru: { name: 'VRT Studio Brussel', owner: 'VRT', path: '/stubru.mp3', logo: '/logos/stubru.png', live_metadata: { enabled: true, endpoint: '/metadata/stubru.json' } },\n                joe: { name: 'Joe', owner: 'DPG Media', path: '/joe.mp3', logo: '/logos/joe.png', live_metadata: { enabled: true, endpoint: '/metadata/joe.json' } },\n                nostalgie: { name: 'Nostalgie Vlaanderen', owner: 'Nostalgie', path: '/nostalgie.mp3', logo: '/logos/nostalgie.png', live_metadata: { enabled: true, endpoint: '/metadata/nostalgie.json' } },\n                'joe-gold': { name: 'JOE Gold', owner: 'DPG Media', path: '/joe-gold.mp3', logo: '/logos/joe-gold.png', live_metadata: { enabled: true, endpoint: '/metadata/joe-gold.json' } }\n            },\n            presets: { 1:'radio1', 2:'radio2-limburg', 3:'stubru', 4:'joe', 5:'nostalgie', 6:'joe-gold' }\n        };\n        global.set('soundtouchConfig', cfg);\n    }\n    return cfg;\n}\n\nfunction xmlEscape(s) {\n    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\n\nfunction resolveTarget(cfg, target) {\n    if (!target) throw new Error('Missing target');\n    if (target.startsWith('speaker:')) {\n        const id = target.slice(8);\n        const speaker = cfg.speakers[id];\n        if (!speaker) throw new Error('Unknown speaker ' + id);\n        return { type: 'speaker', id, speaker, zoneName: '' };\n    }\n    if (target.startsWith('zone:')) {\n        const id = target.slice(5);\n        const zone = cfg.zones[id];\n        if (!zone) throw new Error('Unknown zone ' + id);\n        const master = cfg.speakers[zone.master];\n        if (!master) throw new Error('Unknown zone master ' + zone.master);\n        return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n    }\n    throw new Error('Target must start with speaker: or zone:');\n}\n\nfunction liveMetadataSubtitle(metadata, maxAgeSeconds) {\n    if (!metadata || !metadata.updated_at) return '';\n    const ageSeconds = (Date.now() / 1000) - Number(metadata.updated_at);\n    if (!Number.isFinite(ageSeconds) || ageSeconds > maxAgeSeconds) return '';\n    if (metadata.artist && metadata.title) return `${metadata.artist} - ${metadata.title}`;\n    return metadata.raw || '';\n}\n\nfunction chooseSubtitle(cfg, stationKey, station, target) {\n    const liveMetadata = global.get('liveMetadata') || {};\n    const candidates = {\n        live_metadata: liveMetadataSubtitle(liveMetadata[stationKey], cfg.liveMetadataMaxAgeSeconds || 45),\n        zone_name: target.zoneName || '',\n        speaker_name: (target.speaker && target.speaker.name) || target.id || '',\n        station_owner: station.owner || ''\n    };\n    const priority = cfg.displaySubtitlePriority || ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'];\n    for (const source of priority) {\n        if (candidates[source]) return { subtitle: candidates[source], source };\n    }\n    return { subtitle: '', source: 'empty' };\n}\n\nfunction logoUrl(cfg, station) {\n    if (!station || !station.logo) return '';\n    if (station.logo.startsWith('http://') || station.logo.startsWith('https://')) return station.logo;\n    return `http://${cfg.piIp}:${cfg.proxyPort || 8091}${station.logo}`;\n}\n\nasync function fetchMetadataIfAvailable(cfg, stationKey, station) {\n    if (!station || !station.live_metadata || !station.live_metadata.enabled || !station.live_metadata.endpoint) return;\n    try {\n        const res = await fetch(`http://${cfg.piIp}:${cfg.proxyPort || 8091}${station.live_metadata.endpoint}`);\n        if (!res.ok) return;\n        const data = await res.json();\n        const liveMetadata = global.get('liveMetadata') || {};\n        liveMetadata[stationKey] = data;\n        global.set('liveMetadata', liveMetadata);\n    } catch (e) {\n        // Metadata is optional; playback should never fail because metadata failed.\n    }\n}\n\nasync function soundtouchPost(ip, path, body, contentType='text/xml') {\n    const res = await fetch(`http://${ip}${path}`, {\n        method: 'POST',\n        headers: { 'Content-Type': contentType },\n        body\n    });\n    const text = await res.text();\n    if (!res.ok) throw new Error(`${ip}${path} -> ${res.status}: ${text}`);\n    return text;\n}\n\nasync function soap(ip, action, innerXml) {\n    const envelope = `<?xml version=\"1.0\"?>\n<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\n  <s:Body>${innerXml}</s:Body>\n</s:Envelope>`;\n    const res = await fetch(`http://${ip}:8091/AVTransport/Control`, {\n        method: 'POST',\n        headers: {\n            'Content-Type': 'text/xml; charset=\"utf-8\"',\n            'SOAPACTION': `\"urn:schemas-upnp-org:service:AVTransport:1#${action}\"`\n        },\n        body: envelope\n    });\n    const text = await res.text();\n    if (!res.ok) throw new Error(`${action} failed on ${ip}: ${res.status}: ${text}`);\n    return text;\n}\n\nasync function applyZone(cfg, zoneId) {\n    const zone = cfg.zones[zoneId];\n    if (!zone) throw new Error('Unknown zone ' + zoneId);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    if (!master.device_id) throw new Error('Master speaker needs device_id for Bose zone creation');\n\n    const members = (zone.members || []).map(id => ({ id, speaker: cfg.speakers[id] })).filter(x => x.speaker);\n    for (const m of members) {\n        if (!m.speaker.device_id) throw new Error(`Zone member ${m.id} needs device_id`);\n    }\n\n    const membersXml = members.map(m => `<member ipaddress=\"${xmlEscape(m.speaker.ip)}\">${xmlEscape(m.speaker.device_id)}</member>`).join('');\n    const body = `<zone master=\"${xmlEscape(master.device_id)}\">${membersXml}</zone>`;\n    const result = await soundtouchPost(master.ip + ':8090', '/setZone', body);\n    return { master: zone.master, members: members.map(m => m.id), result };\n}\n\nasync function playOnSpeaker(speaker, name, streamUrl, display) {\n    const subtitleXml = display.subtitle ? `<dc:creator>${xmlEscape(display.subtitle)}</dc:creator><upnp:artist>${xmlEscape(display.subtitle)}</upnp:artist>` : '';\n    const albumXml = display.album ? `<upnp:album>${xmlEscape(display.album)}</upnp:album>` : '';\n    const artXml = display.logo ? `<upnp:albumArtURI>${xmlEscape(display.logo)}</upnp:albumArtURI>` : '';\n    const didl = `<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">\n  <item id=\"${xmlEscape(name)}\" parentID=\"0\" restricted=\"1\">\n    <dc:title>${xmlEscape(name)}</dc:title>\n    ${subtitleXml}\n    ${albumXml}\n    ${artXml}\n    <upnp:class>object.item.audioItem.audioBroadcast</upnp:class>\n    <res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3\">${xmlEscape(streamUrl)}</res>\n  </item>\n</DIDL-Lite>`;\n    const setUri = await soap(speaker.ip, 'SetAVTransportURI', `<u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>${xmlEscape(streamUrl)}</CurrentURI><CurrentURIMetaData>${xmlEscape(didl)}</CurrentURIMetaData></u:SetAVTransportURI>`);\n    await new Promise(resolve => setTimeout(resolve, 300));\n    const play = await soap(speaker.ip, 'Play', `<u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play>`);\n    return { setUri, play };\n}\n\n(async () => {\n    try {\n        const cfg = getCfg();\n        const body = msg.payload || {};\n        const target = resolveTarget(cfg, body.target);\n        let zoneResult = null;\n        if (target.type === 'zone') {\n            zoneResult = await applyZone(cfg, target.id);\n            await new Promise(resolve => setTimeout(resolve, 700));\n        }\n\n        let name, streamUrl, station = {}, stationKey = '';\n        if (body.customUrl) {\n            name = body.name || 'Custom Stream';\n            station = { name, owner: 'Custom', logo: body.logo || '' };\n            streamUrl = body.useProxy === false\n                ? body.customUrl\n                : `http://${cfg.piIp}:${cfg.proxyPort || 8091}/proxy.mp3?url=${encodeURIComponent(body.customUrl)}`;\n        } else {\n            stationKey = body.station;\n            station = cfg.stations[stationKey];\n            if (!station) throw new Error('Unknown station ' + body.station);\n            name = station.name;\n            streamUrl = `http://${cfg.piIp}:${cfg.proxyPort || 8091}${station.path}`;\n            await fetchMetadataIfAvailable(cfg, stationKey, station);\n        }\n\n        const subtitleChoice = chooseSubtitle(cfg, stationKey, station, target);\n        const display = {\n            title: name,\n            subtitle: subtitleChoice.subtitle,\n            subtitle_source: subtitleChoice.source,\n            fallback_subtitle: target.zoneName || (target.speaker && target.speaker.name) || station.owner || '',\n            logo: body.logo || logoUrl(cfg, station),\n            album: 'Live Radio'\n        };\n\n        const playback = await playOnSpeaker(target.speaker, name, streamUrl, display);\n        msg.payload = { ok: true, target: body.target, name, streamUrl, display, zoneResult, playback: !!playback };\n        node.send(msg);\n    } catch (e) {\n        msg.statusCode = 500;\n        msg.payload = { ok: false, error: e.message || String(e) };\n        node.send(msg);\n    }\n})();\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 280,
+    "wires": [
+      [
+        "http_play station_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_play station_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "http_send key_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "send key",
+    "url": "/soundtouch/api/key",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 340,
+    "wires": [
+      [
+        "fn_send key"
+      ]
+    ]
+  },
+  {
+    "id": "fn_send key",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "send key",
+    "func": "\nfunction cfg() { return global.get('soundtouchConfig') || { speakers: { living: { ip: env.get('DEFAULT_BOSE_IP') || '10.0.0.199' } }, zones: {} }; }\nfunction resolveTarget(c, target) {\n    if (!target) throw new Error('Missing target');\n    if (target.startsWith('speaker:')) return c.speakers[target.slice(8)];\n    if (target.startsWith('zone:')) {\n        const z = c.zones[target.slice(5)];\n        if (!z) throw new Error('Unknown zone');\n        return c.speakers[z.master];\n    }\n    throw new Error('Invalid target');\n}\n(async () => {\n    try {\n        const c = cfg();\n        const body = msg.payload || {};\n        const speaker = resolveTarget(c, body.target);\n        if (!speaker) throw new Error('Unknown speaker');\n        const key = body.key;\n        if (!key) throw new Error('Missing key');\n        const xmlPress = `<key state=\"press\" sender=\"Gabbo\">${key}</key>`;\n        const xmlRelease = `<key state=\"release\" sender=\"Gabbo\">${key}</key>`;\n        const headers = { 'Content-Type': 'application/xml' };\n        const press = await fetch(`http://${speaker.ip}:8090/key`, { method: 'POST', headers, body: xmlPress }).then(r => r.text());\n        await new Promise(resolve => setTimeout(resolve, 200));\n        const release = await fetch(`http://${speaker.ip}:8090/key`, { method: 'POST', headers, body: xmlRelease }).then(r => r.text());\n        msg.payload = { ok: true, key, speaker: speaker.name || speaker.ip, press, release };\n        node.send(msg);\n    } catch (e) {\n        msg.statusCode = 500;\n        msg.payload = { ok: false, error: e.message || String(e) };\n        node.send(msg);\n    }\n})();\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 340,
+    "wires": [
+      [
+        "http_send key_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_send key_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "http_status_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "status",
+    "url": "/soundtouch/api/status",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 400,
+    "wires": [
+      [
+        "fn_status"
+      ]
+    ]
+  },
+  {
+    "id": "fn_status",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "status",
+    "func": "\nfunction cfg() { return global.get('soundtouchConfig') || { speakers: { living: { ip: env.get('DEFAULT_BOSE_IP') || '10.0.0.199' } }, zones: {} }; }\nfunction resolveTarget(c, target) {\n    if (!target) target = 'speaker:' + Object.keys(c.speakers)[0];\n    if (target.startsWith('speaker:')) return c.speakers[target.slice(8)];\n    if (target.startsWith('zone:')) {\n        const z = c.zones[target.slice(5)];\n        if (!z) throw new Error('Unknown zone');\n        return c.speakers[z.master];\n    }\n    throw new Error('Invalid target');\n}\n(async () => {\n    try {\n        const c = cfg();\n        const speaker = resolveTarget(c, msg.req.query.target);\n        const [nowPlaying, volume, zone] = await Promise.all([\n            fetch(`http://${speaker.ip}:8090/now_playing`).then(r => r.text()).catch(e => String(e)),\n            fetch(`http://${speaker.ip}:8090/volume`).then(r => r.text()).catch(e => String(e)),\n            fetch(`http://${speaker.ip}:8090/getZone`).then(r => r.text()).catch(e => String(e))\n        ]);\n        msg.payload = { ok: true, speaker: speaker.name || speaker.ip, ip: speaker.ip, nowPlaying, volume, zone };\n        node.send(msg);\n    } catch (e) {\n        msg.statusCode = 500;\n        msg.payload = { ok: false, error: e.message || String(e) };\n        node.send(msg);\n    }\n})();\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 400,
+    "wires": [
+      [
+        "http_status_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_status_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "http_apply zone_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "apply zone",
+    "url": "/soundtouch/api/zone/apply",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 460,
+    "wires": [
+      [
+        "fn_apply zone"
+      ]
+    ]
+  },
+  {
+    "id": "fn_apply zone",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "apply zone",
+    "func": "\nfunction getCfg() {\n    let cfg = global.get('soundtouchConfig');\n    if (!cfg) {\n        cfg = {\n            piIp: env.get('PI_IP') || '10.0.0.241',\n            speakers: { living: { name: 'Living Room', ip: env.get('DEFAULT_BOSE_IP') || '10.0.0.199', device_id: '' } },\n            zones: {},\n            stations: {\n                radio1: { name: 'VRT Radio 1', path: '/radio1.mp3' },\n                'radio2-limburg': { name: 'VRT Radio 2 Limburg', path: '/radio2-limburg.mp3' },\n                stubru: { name: 'VRT Studio Brussel', path: '/stubru.mp3' },\n                joe: { name: 'Joe', path: '/joe.mp3' },\n                nostalgie: { name: 'Nostalgie Vlaanderen', path: '/nostalgie.mp3' },\n                'joe-gold': { name: 'JOE Gold', path: '/joe-gold.mp3' }\n            },\n            presets: { 1:'radio1', 2:'radio2-limburg', 3:'stubru', 4:'joe', 5:'nostalgie', 6:'joe-gold' }\n        };\n        global.set('soundtouchConfig', cfg);\n    }\n    return cfg;\n}\n\nfunction xmlEscape(s) {\n    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\n\nfunction resolveTarget(cfg, target) {\n    if (!target) throw new Error('Missing target');\n    if (target.startsWith('speaker:')) {\n        const id = target.slice(8);\n        const speaker = cfg.speakers[id];\n        if (!speaker) throw new Error('Unknown speaker ' + id);\n        return { type: 'speaker', id, speaker };\n    }\n    if (target.startsWith('zone:')) {\n        const id = target.slice(5);\n        const zone = cfg.zones[id];\n        if (!zone) throw new Error('Unknown zone ' + id);\n        const master = cfg.speakers[zone.master];\n        if (!master) throw new Error('Unknown zone master ' + zone.master);\n        return { type: 'zone', id, zone, speaker: master };\n    }\n    throw new Error('Target must start with speaker: or zone:');\n}\n\nasync function soundtouchPost(ip, path, body, contentType='text/xml') {\n    const res = await fetch(`http://${ip}${path}`, {\n        method: 'POST',\n        headers: { 'Content-Type': contentType },\n        body\n    });\n    const text = await res.text();\n    if (!res.ok) throw new Error(`${ip}${path} -> ${res.status}: ${text}`);\n    return text;\n}\n\nasync function soap(ip, action, innerXml) {\n    const envelope = `<?xml version=\"1.0\"?>\n<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\n  <s:Body>${innerXml}</s:Body>\n</s:Envelope>`;\n    const res = await fetch(`http://${ip}:8091/AVTransport/Control`, {\n        method: 'POST',\n        headers: {\n            'Content-Type': 'text/xml; charset=\"utf-8\"',\n            'SOAPACTION': `\"urn:schemas-upnp-org:service:AVTransport:1#${action}\"`\n        },\n        body: envelope\n    });\n    const text = await res.text();\n    if (!res.ok) throw new Error(`${action} failed on ${ip}: ${res.status}: ${text}`);\n    return text;\n}\n\nasync function applyZone(cfg, zoneId) {\n    const zone = cfg.zones[zoneId];\n    if (!zone) throw new Error('Unknown zone ' + zoneId);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    if (!master.device_id) throw new Error('Master speaker needs device_id for Bose zone creation');\n\n    const members = (zone.members || []).map(id => ({ id, speaker: cfg.speakers[id] })).filter(x => x.speaker);\n    for (const m of members) {\n        if (!m.speaker.device_id) throw new Error(`Zone member ${m.id} needs device_id`);\n    }\n\n    const membersXml = members.map(m => `<member ipaddress=\"${xmlEscape(m.speaker.ip)}\">${xmlEscape(m.speaker.device_id)}</member>`).join('');\n    const body = `<zone master=\"${xmlEscape(master.device_id)}\">${membersXml}</zone>`;\n    const result = await soundtouchPost(master.ip + ':8090', '/setZone', body);\n    return { master: zone.master, members: members.map(m => m.id), result };\n}\n\nasync function playOnSpeaker(speaker, name, streamUrl) {\n    const didl = `<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">\n  <item id=\"${xmlEscape(name)}\" parentID=\"0\" restricted=\"1\">\n    <dc:title>${xmlEscape(name)}</dc:title>\n    <upnp:class>object.item.audioItem.audioBroadcast</upnp:class>\n    <res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3\">${xmlEscape(streamUrl)}</res>\n  </item>\n</DIDL-Lite>`;\n    const setUri = await soap(speaker.ip, 'SetAVTransportURI', `<u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>${xmlEscape(streamUrl)}</CurrentURI><CurrentURIMetaData>${xmlEscape(didl)}</CurrentURIMetaData></u:SetAVTransportURI>`);\n    await new Promise(resolve => setTimeout(resolve, 300));\n    const play = await soap(speaker.ip, 'Play', `<u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play>`);\n    return { setUri, play };\n}\n\n(async () => {\n    try {\n        const cfg = getCfg();\n        const body = msg.payload || {};\n        const target = resolveTarget(cfg, body.target);\n        if (target.type !== 'zone') throw new Error('Apply zone needs a zone target');\n        const zoneResult = await applyZone(cfg, target.id);\n        msg.payload = { ok: true, target: body.target, zoneResult };\n        node.send(msg);\n        return;\n\n        let name, streamUrl;\n        if (body.customUrl) {\n            name = body.name || 'Custom Stream';\n            streamUrl = body.useProxy === false\n                ? body.customUrl\n                : `http://${cfg.piIp}:8091/proxy.mp3?url=${encodeURIComponent(body.customUrl)}`;\n        } else {\n            const station = cfg.stations[body.station];\n            if (!station) throw new Error('Unknown station ' + body.station);\n            name = station.name;\n            streamUrl = `http://${cfg.piIp}:8091${station.path}`;\n        }\n\n        const playback = await playOnSpeaker(target.speaker, name, streamUrl);\n        msg.payload = { ok: true, target: body.target, name, streamUrl, zoneResult, playback: !!playback };\n        node.send(msg);\n    } catch (e) {\n        msg.statusCode = 500;\n        msg.payload = { ok: false, error: e.message || String(e) };\n        node.send(msg);\n    }\n})();\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 460,
+    "wires": [
+      [
+        "http_apply zone_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_apply zone_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "http_dissolve zone_in",
+    "type": "http in",
+    "z": "flow_soundtouch",
+    "name": "dissolve zone",
+    "url": "/soundtouch/api/zone/dissolve",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 520,
+    "wires": [
+      [
+        "fn_dissolve zone"
+      ]
+    ]
+  },
+  {
+    "id": "fn_dissolve zone",
+    "type": "function",
+    "z": "flow_soundtouch",
+    "name": "dissolve zone",
+    "func": "\nfunction getCfg() { return global.get('soundtouchConfig') || { speakers: {}, zones: {} }; }\nfunction xmlEscape(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;'); }\nfunction resolveMaster(cfg, target) {\n    if (!target) throw new Error('Missing target');\n    if (target.startsWith('speaker:')) return cfg.speakers[target.slice(8)];\n    if (target.startsWith('zone:')) {\n        const z = cfg.zones[target.slice(5)];\n        if (!z) throw new Error('Unknown zone');\n        return cfg.speakers[z.master];\n    }\n    throw new Error('Invalid target');\n}\n(async () => {\n    try {\n        const cfg = getCfg();\n        const speaker = resolveMaster(cfg, msg.payload.target);\n        if (!speaker) throw new Error('Unknown speaker');\n        if (!speaker.device_id) throw new Error('Speaker needs device_id to dissolve zone');\n        const body = `<zone master=\"${xmlEscape(speaker.device_id)}\"></zone>`;\n        const res = await fetch(`http://${speaker.ip}:8090/setZone`, { method: 'POST', headers: { 'Content-Type': 'text/xml' }, body });\n        const text = await res.text();\n        if (!res.ok) throw new Error(`${res.status}: ${text}`);\n        msg.payload = { ok: true, speaker: speaker.name || speaker.ip, result: text };\n        node.send(msg);\n    } catch (e) {\n        msg.statusCode = 500;\n        msg.payload = { ok: false, error: e.message || String(e) };\n        node.send(msg);\n    }\n})();\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 520,
+    "wires": [
+      [
+        "http_dissolve zone_res"
+      ]
+    ]
+  },
+  {
+    "id": "http_dissolve zone_res",
+    "type": "http response",
+    "z": "flow_soundtouch",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 540,
+    "y": 520,
+    "wires": []
+  }
+]

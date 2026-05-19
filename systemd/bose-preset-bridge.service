@@ -1,0 +1,16 @@
+[Unit]
+Description=Bose SoundTouch hardware preset to UPnP bridge
+After=network-online.target soundtouch-radio-proxy.service
+Wants=network-online.target soundtouch-radio-proxy.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/soundtouch-radio/bose-bridge
+ExecStart=/home/pi/soundtouch-radio/bose-bridge/venv/bin/python /home/pi/soundtouch-radio/bose-bridge/bose-preset-bridge.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

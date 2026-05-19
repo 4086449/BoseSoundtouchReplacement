@@ -1,0 +1,9 @@
+{
+  "name": "soundtouch-radio-nodered",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node-RED dashboard and API for Bose SoundTouch radio control",
+  "dependencies": {
+    "node-red-dashboard": "^3.6.6"
+  }
+}

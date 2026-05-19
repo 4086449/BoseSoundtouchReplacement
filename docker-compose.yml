@@ -1,132 +1,34 @@
-# SoundTouch Replacement - Pi stack
-#
-# Designed for a Raspberry Pi (Linux) with Docker + Compose + Portainer already
-# installed. Gerbera uses host networking because SSDP/UPnP discovery needs
-# multicast on the LAN; everything else stays on a bridge network.
-#
-# Default profile brings up the full runtime stack.
-# `--profile mock` adds WireMock to fake the SoundTouch HTTP API for offline
-# flow development.
-
-name: soundtouch
-
-networks:
-  stnet:
-    driver: bridge
-
-volumes:
-  ha_config:
-  nodered_data:
-  mosquitto_data:
-  mosquitto_log:
-  gerbera_db:
-  gerbera_run:
-
 services:
-  homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
-    container_name: st-homeassistant
+  radio-proxy:
+    build: .
+    container_name: soundtouch-radio-proxy
     restart: unless-stopped
-    environment:
-      - TZ=${TZ:-Europe/Brussels}
-    volumes:
-      - ./homeassistant/config:/config
-      - ha_config:/config/.storage
     ports:
-      - "8123:8123"
-    networks:
-      - stnet
+      - "8091:8091"
+    command: python /app/soundtouch-proxy/radio-proxy.py
+
+  bose-bridge:
+    build: .
+    container_name: soundtouch-bose-bridge
+    restart: unless-stopped
     depends_on:
-      - mosquitto
+      - radio-proxy
+    command: python /app/bose-bridge/bose-preset-bridge.py
 
   nodered:
-    image: nodered/node-red:latest
-    container_name: st-nodered
+    build: ./nodered
+    container_name: soundtouch-node-red
     restart: unless-stopped
-    environment:
-      - TZ=${TZ:-Europe/Brussels}
-      - BOSE_HOST=${BOSE_HOST:-10.0.0.199}
-      - BOSE_PORT=${BOSE_PORT:-8090}
-      - GEO_LAT=${GEO_LAT:-50.9307}
-      - GEO_LON=${GEO_LON:-5.3325}
-      - RB_USER_AGENT=${RB_USER_AGENT:-SoundTouchReplacement/0.1}
-      - GERBERA_URL=${GERBERA_URL:-http://gerbera-host:49152}
-    volumes:
-      - nodered_data:/data
-      - ./node-red/data:/data/seed:ro
-      - ./config/gerbera/radio-stations.json:/data/radio-stations.json:ro
     ports:
       - "1880:1880"
-    networks:
-      - stnet
+    environment:
+      - TZ=Europe/Amsterdam
+      - PI_IP=${PI_IP:-10.0.0.241}
+      - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.199}
+    volumes:
+      - nodered-data:/data
     depends_on:
-      - mosquitto
+      - radio-proxy
 
-  mosquitto:
-    image: eclipse-mosquitto:2
-    container_name: st-mosquitto
-    restart: unless-stopped
-    environment:
-      - TZ=${TZ:-Europe/Brussels}
-    volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    networks:
-      - stnet
-
-  mqtt-explorer-web:
-    image: smeagolworms4/mqtt-explorer:latest
-    container_name: st-mqtt-explorer
-    restart: unless-stopped
-    environment:
-      - HTTP_PORT=4000
-      - CONFIG_PATH=/mqtt-explorer/config
-    ports:
-      - "4000:4000"
-    networks:
-      - stnet
-    depends_on:
-      - mosquitto
-
-  gerbera:
-    image: gerbera/gerbera:latest
-    container_name: st-gerbera
-    restart: unless-stopped
-    # Host networking is required for SSDP multicast so the SoundTouch speaker
-    # can discover the DLNA server on the LAN. This works on Linux (Pi) but
-    # not on Docker Desktop for macOS/Windows.
-    network_mode: host
-    environment:
-      - TZ=${TZ:-Europe/Brussels}
-    volumes:
-      # Let Gerbera auto-generate its own config.xml on first start inside the
-      # named volume. We tweak it later via the web UI (or by editing the file
-      # in the volume). Trying to ship a hand-written config.xml is fragile -
-      # this image's paths differ from upstream defaults.
-      - gerbera_run:/var/run/gerbera
-      - gerbera_db:/var/lib/gerbera
-      # - ./gerbera/config:/var/run/gerbera
-      - ./gerbera/content:/mnt/content:ro
-    # command:
-    #   - -p
-    #   - "49494"
-    #   - -c
-    #   - /var/run/gerbera/config.xml
-
-  # Optional: fake SoundTouch device for flow development.
-  # Enable with: docker compose --profile mock up -d
-  wiremock:
-    image: wiremock/wiremock:latest
-    container_name: st-wiremock
-    restart: unless-stopped
-    profiles: ["mock"]
-    ports:
-      - "8090:8080"
-    volumes:
-      - ./wiremock:/home/wiremock:ro
-    networks:
-      - stnet
+volumes:
+  nodered-data:

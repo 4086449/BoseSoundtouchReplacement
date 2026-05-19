@@ -1,0 +1,16 @@
+[Unit]
+Description=SoundTouch radio stream proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/soundtouch-radio/soundtouch-proxy
+ExecStart=/usr/bin/python3 /home/pi/soundtouch-radio/soundtouch-proxy/radio-proxy.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
