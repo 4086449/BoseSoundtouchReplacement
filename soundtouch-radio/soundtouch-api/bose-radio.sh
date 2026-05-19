@@ -2,7 +2,13 @@
 # Directly play one station on the Bose via UPnP AVTransport.
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-. "$SCRIPT_DIR/config.sh"
+ENV_FILE="$SCRIPT_DIR/../../.env"
+if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+BOSE_IP="${BOSE_IP:-10.0.0.199}"
+PI_IP="${PI_IP:-10.0.0.241}"
+PROXY_PORT="${PROXY_PORT:-8091}"
+SPEAKER_NAME="${SPEAKER_NAME:-Living Room}"
+ACTIVE_ZONE_NAME="${ACTIVE_ZONE_NAME:-}"
 
 case "$1" in
   1|radio1)
@@ -101,7 +107,7 @@ curl -s -X POST "http://$BOSE_IP:8091/AVTransport/Control" \
 XML
 
 echo
-sleep 0.5
+sleep 0.3
 
 curl -s -X POST "http://$BOSE_IP:8091/AVTransport/Control" \
   -H 'Content-Type: text/xml; charset="utf-8"' \
@@ -120,3 +126,4 @@ curl -s -X POST "http://$BOSE_IP:8091/AVTransport/Control" \
 XML
 
 echo
+echo "Now playing $NAME"

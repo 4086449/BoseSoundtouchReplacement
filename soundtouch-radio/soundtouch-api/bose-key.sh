@@ -2,7 +2,9 @@
 # Send a key command to Bose SoundTouch REST API.
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-. "$SCRIPT_DIR/config.sh"
+ENV_FILE="$SCRIPT_DIR/../../.env"
+if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+BOSE_IP="${BOSE_IP:-10.0.0.199}"
 
 KEY="$1"
 
@@ -27,5 +29,3 @@ sleep 0.2
 curl -s -X POST "http://$BOSE_IP:8090/key" \
   -H "Content-Type: application/xml" \
   --data-binary "<key state=\"release\" sender=\"Gabbo\">$KEY</key>"
-
-echo

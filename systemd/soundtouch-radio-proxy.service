@@ -7,8 +7,9 @@ Wants=network-online.target
 Type=simple
 User=pi
 Group=pi
-WorkingDirectory=/home/pi/soundtouch-radio/soundtouch-proxy
-ExecStart=/usr/bin/python3 /home/pi/soundtouch-radio/soundtouch-proxy/radio-proxy.py
+WorkingDirectory=/home/pi/BoseSoundtouchReplacement/soundtouch-radio/proxy
+ExecStart=/usr/bin/python3 /home/pi/BoseSoundtouchReplacement/soundtouch-radio/proxy/radio-proxy.py
+EnvironmentFile=/home/pi/BoseSoundtouchReplacement/.env
 Restart=always
 RestartSec=5
 

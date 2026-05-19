@@ -4,7 +4,8 @@
 import os
 from pathlib import Path
 
-_env_path = Path(__file__).resolve().parent / ".env"
+# .env lives at repo root (one level above soundtouch-radio/)
+_env_path = Path(__file__).resolve().parents[1] / ".env"
 if _env_path.exists():
     with open(_env_path) as _f:
         for _line in _f:
@@ -29,8 +30,6 @@ PROXY_BIND_IP = os.environ.get("PROXY_BIND_IP", "0.0.0.0")
 PROXY_PORT = int(os.environ.get("PROXY_PORT", "8091"))
 
 # Subtitle priority used by the bridge when building Bose UPnP metadata.
-# Live metadata is a future extension: the proxy currently exposes placeholder
-# metadata endpoints, so this will gracefully fall back to zone/device/owner.
 DISPLAY_SUBTITLE_PRIORITY = [
     "live_metadata",
     "zone_name",

@@ -92,10 +92,6 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"Metadata not found\n")
             return
 
-        # The current implementation returns empty/stale metadata. Future ICY
-        # parsing should update METADATA[station_key] with artist/title/raw and
-        # updated_at=time.time(). The bridge/Node-RED already know how to prefer
-        # fresh metadata and fall back to zone/device/owner.
         body = json.dumps(payload, indent=2).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -107,7 +103,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/logos/"):
-            # Simple existence check without body.
             filename = parsed.path.removeprefix("/logos/")
             safe_path = (LOGO_DIR / filename).resolve()
             if safe_path.is_file():

@@ -6,48 +6,48 @@ It was created after the native Bose `LOCAL_INTERNET_RADIO` preset route stored 
 
 ```text
 Bose hardware preset button
-  -> Bose emits a WebSocket preset event
-  -> Raspberry Pi bridge detects <preset id="1">
-  -> Pi sends UPnP SetAVTransportURI + Play to Bose
-  -> Bose pulls http://PI_IP:8091/radio1.mp3
-  -> Pi proxy follows broadcaster redirects
-  -> music plays
+  → Bose emits a WebSocket preset event
+  → Raspberry Pi bridge detects <preset id="1">
+  → Pi sends UPnP SetAVTransportURI + Play to Bose
+  → Bose pulls http://PI_IP:8091/radio1.mp3
+  → Pi proxy follows broadcaster redirects
+  → music plays
 ```
 
 ## Folder layout
 
-Expected location on the Pi:
-
 ```text
-/home/pi/soundtouch-radio
-├── README.md
-├── .env
+BoseSoundtouchReplacement/
+├── .env                        ← single source of truth for all IPs/ports
 ├── .env.example
-├── config.py
-├── config.sh
-├── install-services.sh
-├── bose-bridge
-│   ├── bose-preset-bridge.py
-│   └── venv
-├── bose-key.sh
-├── bose-radio.sh
-├── joe-gold.json
-├── joe.json
-├── make-json.sh
-├── nostalgie.json
-├── play-bose-upnp.sh
-├── radio1.json
-├── radio2-limburg.json
-├── soundtouch-proxy
-│   ├── radio-proxy.py
-│   └── radio-proxy.py.bak
-├── stubru.json
-└── systemd
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
+├── nodered/
+│   ├── Dockerfile
+│   ├── README.md
+│   └── data/
+│       ├── flows.json
+│       ├── package.json
+│       └── settings.js
+├── soundtouch-radio/           ← application code (copied into Docker image)
+│   ├── config.py
+│   ├── bridge/
+│   │   └── bose-preset-bridge.py
+│   ├── proxy/
+│   │   ├── radio-proxy.py
+│   │   └── logos/
+│   │       └── (station logo PNGs)
+│   └── soundtouch-api/
+│       ├── bose-key.sh
+│       ├── bose-radio.sh
+│       └── play-bose-upnp.sh
+└── systemd/                    ← alternative: bare-metal deployment
+    ├── README.md
+    ├── install.sh
     ├── bose-preset-bridge.service
     └── soundtouch-radio-proxy.service
 ```
-
-The `.json` files are optional diagnostics for the old Bose local-internet-radio method. The working playback path uses `bose-preset-bridge.py`, `radio-proxy.py`, and UPnP.
 
 ## Preset mapping
 
@@ -60,284 +60,155 @@ The `.json` files are optional diagnostics for the old Bose local-internet-radio
 | 5 | Nostalgie Vlaanderen | `http://PI_IP:8091/nostalgie.mp3` |
 | 6 | JOE Gold | `http://PI_IP:8091/joe-gold.mp3` |
 
-## 1. Copy project to the new Pi
+---
 
-Copy this folder to the new Pi as:
+## Quick start (Docker — recommended)
 
-```bash
-/home/pi/soundtouch-radio
-```
-
-For example:
+### 1. Clone and configure
 
 ```bash
-scp -r soundtouch-radio pi@NEW_PI_IP:/home/pi/
+ssh pi@PI_IP
+git clone https://github.com/4086449/BoseSoundtouchReplacement.git
+cd BoseSoundtouchReplacement
+cp .env.example .env
+nano .env
 ```
 
-Then SSH into the Pi:
-
-```bash
-ssh pi@NEW_PI_IP
-cd /home/pi/soundtouch-radio
-```
-
-## 2. Install base packages
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv curl
-```
-
-## 3. Configure IP addresses
-
-Edit the `.env` file in the project root:
-
-```bash
-nano /home/pi/soundtouch-radio/.env
-```
-
-Set:
+Set your IP addresses:
 
 ```env
-BOSE_IP=NEW_BOSE_IP
-PI_IP=NEW_PI_IP
+BOSE_IP=10.0.0.199
+PI_IP=10.0.0.241
 PROXY_PORT=8091
 PROXY_BIND_IP=0.0.0.0
 SPEAKER_NAME=Living Room
 ACTIVE_ZONE_NAME=
 ```
 
-Both `config.py` and `config.sh` read from this file automatically. You no longer need to edit them separately.
+Important distinction:
 
-## 4. Install Python dependency
+- `PROXY_BIND_IP=0.0.0.0` — where the container listens (always `0.0.0.0` for Docker)
+- `PI_IP` — the host IP advertised to the Bose in UPnP URLs
 
-```bash
-cd /home/pi/soundtouch-radio/bose-bridge
-python3 -m venv venv
-./venv/bin/pip install websockets
-```
-
-## 5. Test the stream proxy manually
-
-Start the proxy in a terminal:
+### 2. Build and start
 
 ```bash
-cd /home/pi/soundtouch-radio
-/usr/bin/python3 soundtouch-proxy/radio-proxy.py
+docker compose up -d --build
 ```
 
-From another terminal or another computer:
+### 3. Verify
+
+Test the stream proxy:
 
 ```bash
-curl -I http://NEW_PI_IP:8091/radio1.mp3
+curl -I http://PI_IP:8091/radio1.mp3
 ```
 
-Expected:
+Expected: `HTTP/1.0 200 OK` with `Content-Type: audio/mpeg`.
 
-```text
-HTTP/1.0 200 OK
-Content-Type: audio/mpeg
-```
-
-Test actual audio bytes:
+Press a Bose hardware preset button, then check:
 
 ```bash
-curl -v --max-time 5 http://NEW_PI_IP:8091/radio1.mp3 -o /tmp/radio1-test.mp3
+curl -s "http://BOSE_IP:8090/now_playing"
 ```
 
-If you receive data, stop the manual proxy with `Ctrl+C`.
+Expected: `<ContentItem source="UPNP" ...>` with `<playStatus>PLAY_STATE</playStatus>`.
 
-## 6. Test direct UPnP playback
-
-Run:
+### 4. View logs
 
 ```bash
-cd /home/pi/soundtouch-radio
-./bose-radio.sh 1
+docker compose logs -f radio-proxy
+docker compose logs -f bose-bridge
+docker compose logs -f nodered
 ```
 
-Then check the Bose:
+### 5. Stop / restart
 
 ```bash
-curl -s "http://NEW_BOSE_IP:8090/now_playing"
+docker compose down
+docker compose up -d
 ```
 
-A successful response should include:
+---
 
-```xml
-<ContentItem source="UPNP" location="http://NEW_PI_IP:8091/radio1.mp3"
-```
+## Alternative: bare-metal with systemd
 
-and:
+If Docker is not available, see [`systemd/README.md`](systemd/README.md) for instructions on running directly with systemd services.
 
-```xml
-<playStatus>PLAY_STATE</playStatus>
-```
+---
 
-Try all presets:
+## Shell utilities
+
+The `soundtouch-radio/soundtouch-api/` folder has helper scripts that source `.env` automatically:
+
+Play a station by preset number:
 
 ```bash
-./bose-radio.sh 1
-./bose-radio.sh 2
-./bose-radio.sh 3
-./bose-radio.sh 4
-./bose-radio.sh 5
-./bose-radio.sh 6
+soundtouch-radio/soundtouch-api/bose-radio.sh 1
+soundtouch-radio/soundtouch-api/bose-radio.sh 2
+soundtouch-radio/soundtouch-api/bose-radio.sh 3
+soundtouch-radio/soundtouch-api/bose-radio.sh 4
+soundtouch-radio/soundtouch-api/bose-radio.sh 5
+soundtouch-radio/soundtouch-api/bose-radio.sh 6
 ```
 
-## 7. Test hardware preset bridge manually
-
-Run:
+Send Bose key commands:
 
 ```bash
-cd /home/pi/soundtouch-radio/bose-bridge
-./venv/bin/python bose-preset-bridge.py
+soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_UP
+soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_DOWN
+soundtouch-radio/soundtouch-api/bose-key.sh PLAY_PAUSE
+soundtouch-radio/soundtouch-api/bose-key.sh MUTE
 ```
 
-Press hardware preset button 1 on the Bose.
-
-Expected log:
-
-```text
-Connecting to ws://NEW_BOSE_IP:8080
-Connected. Press a Bose hardware preset button.
-Event: <SoundTouchSdkInfo ... />
-Event: <updates ...><nowSelectionUpdated><preset id="1">...</preset></nowSelectionUpdated></updates>
-PRESET_1: playing VRT Radio 1
-Now playing VRT Radio 1
-```
-
-Check playback:
+Quick play preset 1:
 
 ```bash
-curl -s "http://NEW_BOSE_IP:8090/now_playing"
+soundtouch-radio/soundtouch-api/play-bose-upnp.sh
 ```
 
-Expected:
+---
 
-```xml
-<nowPlaying ... source="UPNP" ...>
-...
-<playStatus>PLAY_STATE</playStatus>
-```
+## Keep dummy Bose presets stored
 
-## 8. Install systemd services
-
-From project root:
-
-```bash
-cd /home/pi/soundtouch-radio
-./install-services.sh
-```
-
-Or manually:
-
-```bash
-sudo cp systemd/soundtouch-radio-proxy.service /etc/systemd/system/
-sudo cp systemd/bose-preset-bridge.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable soundtouch-radio-proxy.service
-sudo systemctl enable bose-preset-bridge.service
-sudo systemctl start soundtouch-radio-proxy.service
-sudo systemctl start bose-preset-bridge.service
-```
-
-Check services:
-
-```bash
-systemctl status soundtouch-radio-proxy.service
-systemctl status bose-preset-bridge.service
-```
-
-Watch bridge logs:
-
-```bash
-journalctl -u bose-preset-bridge.service -f
-```
-
-Watch proxy logs:
-
-```bash
-journalctl -u soundtouch-radio-proxy.service -f
-```
-
-## 9. Keep dummy Bose presets stored
-
-The hardware bridge needs the Bose to emit preset selection events. On some firmware versions, this may require something to be stored in each hardware preset slot.
+The hardware bridge needs the Bose to emit preset selection events. On some firmware versions, this requires something to be stored in each hardware preset slot.
 
 It is okay if the stored Bose preset itself is broken. The bridge only uses the button press event and then overrides playback with UPnP.
 
-You can store a dummy local preset like this:
+Store a dummy preset:
 
 ```bash
-curl -X POST "http://NEW_BOSE_IP:8090/storePreset" \
+curl -X POST "http://BOSE_IP:8090/storePreset" \
   -H "Content-Type: application/xml" \
   --data-binary @- <<EOF
 <preset id="1">
-  <ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" location="http://NEW_PI_IP:8091/radio1.mp3">
+  <ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" location="http://PI_IP:8091/radio1.mp3">
     <itemName>VRT Radio 1</itemName>
   </ContentItem>
 </preset>
 EOF
 ```
 
-Repeat for other preset IDs if needed. The dummy preset may still show `INVALID_SOURCE`; that is expected. The bridge should detect `<preset id="1">` and replace it with working UPnP playback.
+Repeat for preset IDs 2–6. The dummy preset may show `INVALID_SOURCE`; that is expected.
 
-## 10. Useful commands
+---
 
-Play by command line:
-
-```bash
-/home/pi/soundtouch-radio/bose-radio.sh 1
-/home/pi/soundtouch-radio/bose-radio.sh 2
-/home/pi/soundtouch-radio/bose-radio.sh 3
-/home/pi/soundtouch-radio/bose-radio.sh 4
-/home/pi/soundtouch-radio/bose-radio.sh 5
-/home/pi/soundtouch-radio/bose-radio.sh 6
-```
-
-Send Bose key commands:
-
-```bash
-/home/pi/soundtouch-radio/bose-key.sh VOLUME_UP
-/home/pi/soundtouch-radio/bose-key.sh VOLUME_DOWN
-/home/pi/soundtouch-radio/bose-key.sh PLAY_PAUSE
-/home/pi/soundtouch-radio/bose-key.sh MUTE
-```
-
-Restart services:
-
-```bash
-sudo systemctl restart soundtouch-radio-proxy.service
-sudo systemctl restart bose-preset-bridge.service
-```
-
-Check current playback:
-
-```bash
-curl -s "http://NEW_BOSE_IP:8090/now_playing"
-```
-
-## 11. Troubleshooting
+## Troubleshooting
 
 ### Proxy works but Bose does not play
 
-Test:
-
 ```bash
-curl -I http://NEW_PI_IP:8091/radio1.mp3
-/home/pi/soundtouch-radio/bose-radio.sh 1
-curl -s "http://NEW_BOSE_IP:8090/now_playing"
+curl -I http://PI_IP:8091/radio1.mp3
+soundtouch-radio/soundtouch-api/bose-radio.sh 1
+curl -s "http://BOSE_IP:8090/now_playing"
 ```
 
-If `bose-radio.sh 1` works but the hardware button does not, the issue is the bridge service or WebSocket event parsing.
+If `bose-radio.sh 1` works but the hardware button does not, the issue is the bridge or WebSocket event parsing.
 
 ### Hardware button event appears but nothing plays
 
-Watch bridge logs:
-
 ```bash
-journalctl -u bose-preset-bridge.service -f
+docker compose logs -f bose-bridge
 ```
 
 The bridge must show:
@@ -347,158 +218,29 @@ PRESET_1: playing VRT Radio 1
 Now playing VRT Radio 1
 ```
 
-If it only shows the raw event, check that the event contains `<preset id="1">`. The script supports this event shape.
-
 ### Bose shows INVALID_SOURCE
 
-That is the old native Bose preset path failing. The bridge should override it shortly after the button press. If it stays as `INVALID_SOURCE`, check that `bose-preset-bridge.service` is running.
+That is the old native preset path failing. The bridge should override it shortly after the button press. Check that the bose-bridge container is running.
 
 ### WebSocket cannot connect
 
-Check Bose IP and port:
+Verify the Bose is reachable:
 
 ```bash
-curl -s "http://NEW_BOSE_IP:8090/info"
+curl -s "http://BOSE_IP:8090/info"
 ```
 
-Then update `config.py` and restart:
-
-```bash
-sudo systemctl restart bose-preset-bridge.service
-```
-
-### Service paths are wrong
-
-The included service files assume:
-
-```text
-/home/pi/soundtouch-radio
-```
-
-If you install elsewhere, update:
-
-```text
-systemd/soundtouch-radio-proxy.service
-systemd/bose-preset-bridge.service
-```
-
-before running `install-services.sh`.
-
-## 12. Files to edit when duplicating
-
-Only this file needs IP updates:
-
-```text
-/home/pi/soundtouch-radio/.env
-```
-
-Then restart:
-
-```bash
-sudo systemctl restart soundtouch-radio-proxy.service
-sudo systemctl restart bose-preset-bridge.service
-```
-
-## Notes
-
-- `sender="Gabbo"` is required for Bose key commands; `sender="curl"` caused XML parse errors in testing.
-- The direct Bose `LOCAL_INTERNET_RADIO` path stored presets successfully but produced `INVALID_SOURCE` in testing.
-- UPnP playback worked once the stream was proxied through the Pi.
-- The hardware preset button is used as a trigger, not as the actual stored playback source.
+Update `BOSE_IP` in `.env` and restart: `docker compose restart bose-bridge`.
 
 ---
 
-## 13. Optional: run with Docker instead of systemd
-
-The project now includes Docker support:
-
-```text
-Dockerfile
-docker-compose.yml
-.dockerignore
-DOCKER.md
-```
-
-This Docker setup does **not** use `network_mode: host`. It publishes only the proxy port:
-
-```yaml
-ports:
-  - "8091:8091"
-```
-
-This works because the project uses fixed IP addresses and direct TCP/HTTP calls. It does not rely on UPnP multicast discovery.
-
-Before running Docker, make sure `.env` is configured:
-
-```env
-BOSE_IP=NEW_BOSE_IP
-PI_IP=NEW_PI_IP
-PROXY_BIND_IP=0.0.0.0
-PROXY_PORT=8091
-```
-
-Important distinction:
-
-```text
-PROXY_BIND_IP = "0.0.0.0"     # where the container listens
-PI_IP = "NEW_PI_IP"           # URL advertised to the Bose
-```
-
-The Bose should receive URLs like:
-
-```text
-http://NEW_PI_IP:8091/radio1.mp3
-```
-
-not:
-
-```text
-http://0.0.0.0:8091/radio1.mp3
-```
-
-If the host systemd services are installed, stop them before using Docker:
-
-```bash
-sudo systemctl stop soundtouch-radio-proxy.service bose-preset-bridge.service 2>/dev/null || true
-sudo systemctl disable soundtouch-radio-proxy.service bose-preset-bridge.service 2>/dev/null || true
-```
-
-Start Docker:
-
-```bash
-cd /home/pi/soundtouch-radio
-docker compose up -d --build
-```
-
-Check logs:
-
-```bash
-docker compose logs -f radio-proxy
-docker compose logs -f bose-bridge
-```
-
-Test the proxy:
-
-```bash
-curl -I http://NEW_PI_IP:8091/radio1.mp3
-```
-
-Then press a Bose hardware preset button and check:
-
-```bash
-curl -s "http://NEW_BOSE_IP:8090/now_playing"
-```
-
-More detail is in [`DOCKER.md`](DOCKER.md).
-
 ## Node-RED multi-speaker dashboard
 
-This package now includes a Node-RED dashboard in `./nodered`.
+The Docker stack includes a Node-RED dashboard in `./nodered/`.
 
-Start the full Docker stack:
+Start the full stack:
 
 ```bash
-cd /home/pi/soundtouch-radio
 docker compose up -d --build
 ```
 
@@ -516,18 +258,16 @@ The dashboard lets you dynamically edit:
 - volume, mute, play/pause, and power controls
 - custom stream URL playback
 
-Node-RED stores its runtime state in the Docker volume `nodered-data`. If you change the bundled flow files and want Docker to re-seed Node-RED from the project files, remove the volume first:
+Node-RED stores its runtime state in the Docker volume `nodered-data`. To re-seed from project files:
 
 ```bash
 docker compose down -v
 docker compose up -d --build
 ```
 
-The Node-RED dashboard uses classic `node-red-dashboard` widgets. The dashboard page is available under `/ui`.
-
 ### Multiple Bose speakers and zones
 
-In the Node-RED dashboard, edit the Speakers JSON like this:
+In the Node-RED dashboard, edit the Speakers JSON:
 
 ```json
 {
@@ -544,7 +284,7 @@ In the Node-RED dashboard, edit the Speakers JSON like this:
 }
 ```
 
-Edit Zones JSON like this:
+Edit Zones JSON:
 
 ```json
 {
@@ -556,71 +296,39 @@ Edit Zones JSON like this:
 }
 ```
 
-When a station is played to a zone, Node-RED tries to create/update the Bose zone first, then starts UPnP playback on the zone master.
+When a station is played to a zone, Node-RED creates/updates the Bose zone first, then starts UPnP playback on the zone master.
 
 ### Custom stream URLs
 
-The radio proxy also supports a dynamic proxy endpoint:
+The radio proxy supports a dynamic proxy endpoint:
 
 ```text
 http://PI_IP:8091/proxy.mp3?url=ENCODED_HTTP_OR_HTTPS_STREAM_URL
 ```
 
-The Node-RED dashboard uses this when "proxy custom URL via Pi" is enabled.
+The Node-RED dashboard uses this when "proxy custom URL via Pi" is enabled. This is useful for ordinary MP3/AAC internet radio streams. It does not convert web players, DRM services, YouTube, Spotify, AirPlay, or Bluetooth audio.
 
-This is useful for ordinary MP3/AAC internet radio streams. It does not magically convert web players, DRM services, YouTube, Spotify, AirPlay, or Bluetooth audio into an HTTP radio stream. For arbitrary live audio input, use an encoder such as `ffmpeg` plus Icecast or a local HTTP MP3/AAC stream, then point the dashboard at that stream URL.
+---
 
-## Display metadata and future live metadata support
+## Display metadata
 
-The project now treats the Bose middle display line as a prioritized subtitle instead of a fixed artist field.
+The Bose middle display line is a prioritized subtitle. Default priority:
 
-Default priority:
-
-1. Fresh live metadata, when available later
+1. Fresh live metadata (when ICY parsing is added later)
 2. Active zone name
 3. Speaker/device name
-4. Station owner, such as VRT or DPG Media
+4. Station owner (e.g. VRT, DPG Media)
 
-The UPnP metadata sent to Bose is built like this:
+The UPnP metadata sent to Bose:
 
-- `dc:title` = station name, for example `VRT Radio 1`
+- `dc:title` = station name
 - `dc:creator` / `upnp:artist` = chosen subtitle
 - `upnp:album` = `Live Radio`
-- `upnp:albumArtURI` = station logo URL, if a logo file exists
-
-This means today's display is usually:
-
-```text
-VRT Radio 1
-Living Room
-station logo
-```
-
-or, when playing to a configured zone:
-
-```text
-VRT Radio 1
-Downstairs
-station logo
-```
-
-Later, when ICY metadata parsing is added to the proxy, the same code will prefer fresh metadata automatically:
-
-```text
-VRT Radio 1
-Artist - Song Title
-station logo
-```
+- `upnp:albumArtURI` = station logo URL (if present)
 
 ### Logo files
 
-Put optional PNG/JPG files in:
-
-```text
-soundtouch-proxy/logos/
-```
-
-Default filenames:
+Put optional PNG/JPG files in `soundtouch-radio/proxy/logos/`:
 
 ```text
 radio1.png
@@ -631,34 +339,23 @@ nostalgie.png
 joe-gold.png
 ```
 
-The proxy serves them at:
-
-```text
-http://PI_IP:8091/logos/radio1.png
-```
+Served at `http://PI_IP:8091/logos/radio1.png`.
 
 ### Metadata endpoints
-
-The proxy now exposes placeholder metadata endpoints, for example:
 
 ```bash
 curl http://PI_IP:8091/metadata/radio1.json
 ```
 
-At the moment these return empty/stale metadata, by design. They are included so ICY parsing can be added later without changing the bridge or Node-RED display logic.
+Currently returns placeholder metadata. Included so ICY parsing can be added later without changing the bridge or Node-RED logic.
 
-### Configuration fields
+---
 
-In `config.py`:
+## Notes
 
-```python
-DISPLAY_SUBTITLE_PRIORITY = [
-    "live_metadata",
-    "zone_name",
-    "speaker_name",
-    "station_owner",
-]
-LIVE_METADATA_MAX_AGE_SECONDS = 45
-```
+- `sender="Gabbo"` is required for Bose key commands; `sender="curl"` caused XML parse errors.
+- The direct Bose `LOCAL_INTERNET_RADIO` path stored presets successfully but produced `INVALID_SOURCE`.
+- UPnP playback works once the stream is proxied through the Pi.
+- The hardware preset button is used as a trigger, not as the actual stored playback source.
+- This Docker setup does **not** use `network_mode: host`. It publishes only the proxy port (`8091`). This works because the project uses fixed IP addresses and direct TCP/HTTP calls, not UPnP multicast discovery.
 
-For the single-speaker Python bridge, `SPEAKER_NAME` and optional `ACTIVE_ZONE_NAME` are used as fallbacks. In Node-RED, the dashboard dynamically derives the subtitle from the selected zone or speaker.

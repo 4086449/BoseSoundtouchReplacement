@@ -6,6 +6,6 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir websockets
 
-COPY . /app
+COPY soundtouch-radio/ /app/
 
-CMD ["python", "/app/soundtouch-proxy/radio-proxy.py"]
+CMD ["python", "/app/proxy/radio-proxy.py"]

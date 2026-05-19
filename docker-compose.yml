@@ -6,7 +6,7 @@ services:
     env_file: .env
     ports:
       - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
-    command: python /app/soundtouch-proxy/radio-proxy.py
+    command: python /app/proxy/radio-proxy.py
 
   bose-bridge:
     build: .
@@ -15,7 +15,7 @@ services:
     env_file: .env
     depends_on:
       - radio-proxy
-    command: python /app/bose-bridge/bose-preset-bridge.py
+    command: python /app/bridge/bose-preset-bridge.py
 
   nodered:
     build: ./nodered
