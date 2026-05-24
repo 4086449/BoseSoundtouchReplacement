@@ -49,6 +49,29 @@ SCHEMA_VERSION = 1
 SPEAKERS_FILE = Path(__file__).resolve().parent / "speakers.json"
 SPEAKERS_BAK = SPEAKERS_FILE.with_suffix(".json.bak")
 STATUS_FILE = Path(__file__).resolve().parent / "status.json"
+OVERRIDES_FILE = Path(__file__).resolve().parent / "overrides.json"
+
+# Per-speaker live subtitle override defaults.
+LOGO_MAX_BYTES = 2 * 1024 * 1024
+LOGO_ALLOWED_MIME = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+}
+LOGO_MIME_EXT = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+}
+BRIDGE_INTERNAL_PORT = int(os.environ.get("BRIDGE_INTERNAL_PORT", "8092"))
+BRIDGE_INTERNAL_URL = os.environ.get(
+    "BRIDGE_INTERNAL_URL", f"http://127.0.0.1:{BRIDGE_INTERNAL_PORT}"
+)
+SSE_KEEPALIVE_SECONDS = 25
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +218,24 @@ def save_speakers(data):
 def save_status(data):
     """Atomic write of status.json (used by the bridge)."""
     _atomic_write_json(STATUS_FILE, data)
+
+
+def load_overrides():
+    """Return the parsed overrides.json, or an empty dict if missing."""
+    if not OVERRIDES_FILE.exists():
+        return {}
+    try:
+        with OVERRIDES_FILE.open() as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        log.warning("Failed to read %s: %s; treating as empty", OVERRIDES_FILE, e)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_overrides(data):
+    """Atomic write of overrides.json (ephemeral, like status.json)."""
+    _atomic_write_json(OVERRIDES_FILE, data)
 
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")

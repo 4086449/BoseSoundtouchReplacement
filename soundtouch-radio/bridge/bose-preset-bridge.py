@@ -23,8 +23,11 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 import urllib.request
+import xml.etree.ElementTree as ET
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import websockets
@@ -33,12 +36,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import (  # noqa: E402
+    BRIDGE_INTERNAL_PORT,
     DISPLAY_SUBTITLE_PRIORITY,
     LIVE_METADATA_MAX_AGE_SECONDS,
+    OVERRIDES_FILE,
     PI_IP,
     PROXY_PORT,
     SPEAKERS_FILE,
+    load_overrides,
     load_speakers,
+    save_overrides,
     save_status,
 )
 
@@ -47,6 +54,10 @@ log = logging.getLogger("bridge")
 
 BACKOFF_SCHEDULE = [5, 10, 20, 40, 60]
 RELOAD_POLL_SECONDS = 2.0
+
+# Verification: poll /now_playing this many times with these gaps (seconds)
+# until the on-screen subtitle matches what we asked the speaker to display.
+VERIFY_BACKOFF_SECONDS = [0.10, 0.15, 0.25, 0.40, 0.60, 0.80]
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +73,10 @@ class State:
         self.cancels = {}      # speaker_id -> asyncio.Event
         self.status = {}       # speaker_id -> {state, last_event, ...}
         self.status_lock = asyncio.Lock()
+        self.now_playing = {}  # speaker_id -> {station_key, station, subtitle}
+        self.refresh_locks = {}  # speaker_id -> asyncio.Lock (single-flight)
+        self.overrides = load_overrides()  # cached snapshot
+        self.loop = None       # captured in main()
 
     def speakers(self):
         return self.cfg.get("speakers") or {}
@@ -80,6 +95,18 @@ class State:
         sp = self.speakers().get(sid) or {}
         return (sp.get("ip"), bool(sp.get("enabled", True)))
 
+    def refresh_lock(self, sid):
+        lock = self.refresh_locks.get(sid)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.refresh_locks[sid] = lock
+        return lock
+
+    def override_text(self, sid):
+        entry = (self.overrides or {}).get(sid) or {}
+        text = entry.get("text") or ""
+        return text if isinstance(text, str) else ""
+
 
 # ---------------------------------------------------------------------------
 # Status reporting.
@@ -90,6 +117,11 @@ async def write_status(st, sid, **fields):
         entry = st.status.setdefault(sid, {})
         entry.update(fields)
         entry["last_event_at"] = time.time()
+        # Per-speaker playback context for the dashboard.
+        np = st.now_playing.get(sid) or {}
+        entry["current_station"] = np.get("station_key") or ""
+        entry["current_subtitle"] = np.get("subtitle") or ""
+        entry["current_override"] = st.override_text(sid)
         payload = {
             "updated_at": time.time(),
             "speakers": st.status,
@@ -171,6 +203,11 @@ def format_live_metadata(metadata):
 
 
 def choose_subtitle(state, sid, station, live_metadata):
+    # Live override preempts the priority list (transient, not persisted in
+    # speakers.json — held in overrides.json instead).
+    override = state.override_text(sid)
+    if override:
+        return override, "override"
     sp = state.speakers().get(sid) or {}
     zone_id = sp.get("default_zone") or ""
     zone_name = ""
@@ -295,12 +332,115 @@ def extract_preset_event(message):
     return None
 
 
+def is_standby_event(message):
+    """Crude detector: a nowPlaying frame whose source is STANDBY."""
+    if "<nowPlaying" not in message:
+        return False
+    return bool(re.search(r'source\s*=\s*["\']STANDBY["\']', message))
+
+
+# ---------------------------------------------------------------------------
+# Read-back verification: ask the speaker what it is showing.
+# ---------------------------------------------------------------------------
+
+def fetch_now_playing(ip, timeout=2.5):
+    """GET http://IP:8090/now_playing and return the parsed XML element,
+    or None on any error."""
+    url = f"http://{ip}:8090/now_playing"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            body = r.read()
+    except Exception as e:
+        log.debug("now_playing(%s) fetch error: %s", ip, e)
+        return None
+    try:
+        return ET.fromstring(body)
+    except ET.ParseError as e:
+        log.debug("now_playing(%s) parse error: %s", ip, e)
+        return None
+
+
+def now_playing_subtitle(root):
+    """The Bose surfaces our DIDL <dc:creator>/<upnp:artist> as <artist>.
+    Returns the string (possibly empty) or None if unavailable."""
+    if root is None:
+        return None
+    el = root.find("artist")
+    if el is None or el.text is None:
+        return ""
+    return el.text.strip()
+
+
+async def verify_subtitle(ip, expected):
+    """Poll /now_playing until <artist> equals `expected` or the schedule
+    is exhausted. Returns (matched: bool, shown: str|None)."""
+    shown = None
+    for delay in VERIFY_BACKOFF_SECONDS:
+        await asyncio.sleep(delay)
+        root = await asyncio.to_thread(fetch_now_playing, ip)
+        shown = now_playing_subtitle(root)
+        if shown == expected:
+            return True, shown
+    return False, shown
+
+
+async def refresh_subtitle(state, sid):
+    """Re-send the current station's DIDL to the speaker so a changed
+    subtitle (override or default) takes effect, then verify the speaker
+    shows what we sent. Single-flight per speaker; latest-wins coalescing.
+
+    Returns a dict with `state` in {applied, mismatch, timeout, idle, error}
+    plus `shown` (the value the speaker reports back)."""
+    lock = state.refresh_lock(sid)
+    async with lock:
+        sp = state.speakers().get(sid) or {}
+        ip = sp.get("ip")
+        if not ip:
+            return {"state": "error", "shown": None, "detail": "no ip"}
+        np = state.now_playing.get(sid)
+        if not np:
+            return {"state": "idle", "shown": None}
+        station = np.get("station") or {}
+        live_metadata = await asyncio.to_thread(
+            fetch_live_metadata, np.get("station_key") or "", station
+        )
+        subtitle, _source = choose_subtitle(state, sid, station, live_metadata)
+        np["subtitle"] = subtitle
+        try:
+            await asyncio.to_thread(
+                set_av_transport_uri,
+                ip, station.get("name") or "",
+                np.get("stream_url") or "",
+                subtitle,
+                "Live Radio",
+                np.get("logo_url") or "",
+            )
+        except Exception as e:
+            log.warning("[%s] refresh_subtitle SetAVTransportURI failed: %s", sid, e)
+            return {"state": "error", "shown": None, "detail": str(e)}
+        matched, shown = await verify_subtitle(ip, subtitle)
+        await write_status(state, sid)  # picks up new current_subtitle/override
+        if matched:
+            return {"state": "applied", "shown": shown, "sent": subtitle}
+        if shown is None:
+            return {"state": "timeout", "shown": None, "sent": subtitle}
+        return {"state": "mismatch", "shown": shown, "sent": subtitle}
+
+
 async def play_station(state, sid, preset_key, station_key, station):
     sp = state.speakers().get(sid) or {}
     speaker_ip = sp.get("ip")
     if not speaker_ip:
         return
     log.info("[%s] %s -> %s", sid, preset_key, station.get("name"))
+
+    # New station/preset wipes any live override from the previous one.
+    if sid in (state.overrides or {}):
+        state.overrides.pop(sid, None)
+        try:
+            await asyncio.to_thread(save_overrides, state.overrides)
+        except OSError as e:
+            log.debug("save_overrides on station change: %s", e)
 
     # Let the Bose finish its own failed preset selection first.
     await asyncio.sleep(0.7)
@@ -320,6 +460,13 @@ async def play_station(state, sid, preset_key, station_key, station):
     logo_url = station_logo_url(station)
 
     log.info("[%s] title=%r subtitle=%r [%s]", sid, station["name"], subtitle, subtitle_source)
+    state.now_playing[sid] = {
+        "station_key": station_key,
+        "station": station,
+        "subtitle": subtitle,
+        "stream_url": stream_url,
+        "logo_url": logo_url,
+    }
     await asyncio.to_thread(
         set_av_transport_uri,
         speaker_ip,
@@ -389,6 +536,17 @@ async def listen_to_speaker(state, sid, cancel_event):
                     except StopAsyncIteration:
                         break
                     log.debug("[%s] event: %s", sid, message)
+                    if is_standby_event(message):
+                        if sid in state.now_playing or sid in (state.overrides or {}):
+                            log.info("[%s] STANDBY -> clearing now_playing/override", sid)
+                            state.now_playing.pop(sid, None)
+                            if state.overrides.pop(sid, None) is not None:
+                                try:
+                                    await asyncio.to_thread(save_overrides, state.overrides)
+                                except OSError as e:
+                                    log.debug("save_overrides on standby: %s", e)
+                            await write_status(state, sid, last_event="standby")
+                        continue
                     preset_key = extract_preset_event(message)
                     if not preset_key:
                         continue
@@ -457,9 +615,9 @@ async def reconcile_tasks(state, prev_signatures):
 
 
 async def reload_watcher(state):
-    """Poll speakers.json mtime; on change, reload and reconcile tasks."""
+    """Poll speakers.json and overrides.json mtime; reload on change."""
     last_mtime = SPEAKERS_FILE.stat().st_mtime if SPEAKERS_FILE.exists() else 0
-    signatures = {sid: state.speaker_signature(sid) for sid in state.speakers()}
+    last_overrides_mtime = OVERRIDES_FILE.stat().st_mtime if OVERRIDES_FILE.exists() else 0
     # First reconcile to start initial tasks.
     signatures = await reconcile_tasks(state, {})
     while True:
@@ -467,17 +625,92 @@ async def reload_watcher(state):
         try:
             mtime = SPEAKERS_FILE.stat().st_mtime if SPEAKERS_FILE.exists() else 0
         except OSError:
-            continue
-        if mtime == last_mtime:
-            continue
-        last_mtime = mtime
-        log.info("speakers.json changed, reloading")
-        state.cfg = load_speakers()
-        signatures = await reconcile_tasks(state, signatures)
+            mtime = last_mtime
+        if mtime != last_mtime:
+            last_mtime = mtime
+            log.info("speakers.json changed, reloading")
+            state.cfg = load_speakers()
+            signatures = await reconcile_tasks(state, signatures)
+        # Overrides fallback path: the proxy's wake call is the primary
+        # signal; this catches the case where that POST was missed.
+        try:
+            ov_mtime = OVERRIDES_FILE.stat().st_mtime if OVERRIDES_FILE.exists() else 0
+        except OSError:
+            ov_mtime = last_overrides_mtime
+        if ov_mtime != last_overrides_mtime:
+            last_overrides_mtime = ov_mtime
+            new_ov = await asyncio.to_thread(load_overrides)
+            # Diff against cached snapshot; refresh affected speakers.
+            old_keys = set((state.overrides or {}).keys())
+            new_keys = set(new_ov.keys())
+            changed = set()
+            for k in old_keys | new_keys:
+                if (state.overrides.get(k) or {}).get("text", "") != (new_ov.get(k) or {}).get("text", ""):
+                    changed.add(k)
+            state.overrides = new_ov
+            for sid in changed:
+                if sid in state.now_playing:
+                    asyncio.create_task(refresh_subtitle(state, sid))
+
+
+# ---------------------------------------------------------------------------
+# Internal HTTP server: proxy posts here on every override change for
+# sub-second latency. Loopback-only by default.
+# ---------------------------------------------------------------------------
+
+def _start_internal_server(state):
+    loop = state.loop
+
+    class _Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.0"
+
+        def _send(self, code, payload):
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):
+            if self.path != "/internal/refresh":
+                return self._send(404, {"state": "error", "detail": "not found"})
+            try:
+                length = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                length = 0
+            raw = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                payload = json.loads(raw.decode("utf-8") or "{}")
+            except (UnicodeDecodeError, ValueError) as e:
+                return self._send(400, {"state": "error", "detail": str(e)})
+            sid = str(payload.get("speaker_id") or "")
+            if not sid:
+                return self._send(400, {"state": "error", "detail": "missing speaker_id"})
+            # Re-read overrides.json so we have the value the proxy just wrote.
+            try:
+                state.overrides = load_overrides()
+            except Exception as e:
+                log.debug("internal/refresh load_overrides: %s", e)
+            future = asyncio.run_coroutine_threadsafe(refresh_subtitle(state, sid), loop)
+            try:
+                result = future.result(timeout=6.0)
+            except Exception as e:
+                return self._send(500, {"state": "error", "detail": str(e)})
+            self._send(200, result)
+
+        def log_message(self, fmt, *args):
+            log.debug("internal: " + fmt, *args)
+
+    server = ThreadingHTTPServer(("127.0.0.1", BRIDGE_INTERNAL_PORT), _Handler)
+    log.info("Internal HTTP server on 127.0.0.1:%d", BRIDGE_INTERNAL_PORT)
+    threading.Thread(target=server.serve_forever, name="bridge-internal", daemon=True).start()
 
 
 async def main():
     state = State()
+    state.loop = asyncio.get_running_loop()
+    _start_internal_server(state)
     await reload_watcher(state)
 
 

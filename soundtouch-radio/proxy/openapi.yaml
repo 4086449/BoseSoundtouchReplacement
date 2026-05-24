@@ -24,6 +24,10 @@ tags:
     description: Live bridge state
   - name: audio
     description: Streams, logos and live metadata
+  - name: overrides
+    description: Per-speaker live subtitle overrides (ephemeral)
+  - name: events
+    description: Server-Sent Events stream
 
 paths:
   /config:
@@ -189,6 +193,141 @@ paths:
               schema: { $ref: "#/components/schemas/StationMetadata" }
         "404": { description: Unknown station }
 
+  /logos:
+    get:
+      tags: [audio]
+      summary: List uploaded station logos
+      responses:
+        "200":
+          description: Available logo paths
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logos:
+                    type: array
+                    items: { type: string }
+    post:
+      tags: [audio]
+      summary: Upload a new station logo
+      description: |
+        Stores the file in `proxy/logos/` and returns the path that can be
+        used as a station `logo` value. Max 2 MB, image MIME types only.
+        Filenames are sanitized; the extension is forced from the MIME type.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                  description: Optional friendly filename stem (without extension)
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  path: { type: string }
+                  size: { type: integer }
+                  mime: { type: string }
+        "413": { description: Too large }
+        "415": { description: Unsupported MIME type }
+
+  /overrides:
+    get:
+      tags: [overrides]
+      summary: Current per-speaker subtitle overrides
+      responses:
+        "200":
+          description: Map of speaker id to override entry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/OverrideEntry" }
+
+  /overrides/{speaker_id}:
+    put:
+      tags: [overrides]
+      summary: Set or clear the live subtitle override for a speaker
+      description: |
+        Empty `text` clears the override. The proxy notifies the bridge,
+        which pushes a fresh UPnP DIDL to the speaker and then polls
+        `/now_playing` to confirm the change actually rendered. The
+        response carries the verified outcome.
+      parameters:
+        - in: path
+          name: speaker_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+      responses:
+        "200":
+          description: Applied (verified on speaker)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+        "409":
+          description: Mismatch — speaker shows a different value than sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+        "502":
+          description: Bridge unreachable or other transport error
+        "504":
+          description: Verification timed out
+    delete:
+      tags: [overrides]
+      summary: Clear the live subtitle override for a speaker
+      parameters:
+        - in: path
+          name: speaker_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+
+  /events:
+    get:
+      tags: [events]
+      summary: Server-Sent Events stream
+      description: |
+        Long-lived `text/event-stream` connection. Emits events as they
+        happen, with an initial snapshot on connect:
+        * `status` — full `status.json` payload (per-speaker state).
+        * `metadata` — updated ICY metadata for one station.
+        * `override` — full overrides map.
+        * `config` — new `speakers.json` after a successful PUT.
+
+        Keepalive comments are sent every 25 s.
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream: {}
+
 components:
   schemas:
     Config:
@@ -273,6 +412,34 @@ components:
         last_event_at: { type: number }
         last_error: { type: string }
         backoff_seconds: { type: number }
+        current_station:
+          type: string
+          description: Station id currently playing on this speaker (empty if idle)
+        current_subtitle:
+          type: string
+          description: Subtitle most recently sent to the speaker
+        current_override:
+          type: string
+          description: Live override text in effect (empty when not overridden)
+    OverrideEntry:
+      type: object
+      properties:
+        text: { type: string }
+        ts: { type: number, description: Unix epoch when set }
+        state:
+          type: string
+          enum: [pending, applied, mismatch, timeout, error]
+        shown: { type: string, nullable: true, description: Last value the speaker reported back }
+    OverrideResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        state:
+          type: string
+          enum: [applied, mismatch, timeout, idle, cleared, error, noop]
+        sent: { type: string }
+        shown: { type: string, nullable: true }
+        detail: { type: string }
     StationMetadata:
       type: object
       properties:
