@@ -46,10 +46,45 @@ DISPLAY_SUBTITLE_PRIORITY = [
 LIVE_METADATA_MAX_AGE_SECONDS = 45
 
 SCHEMA_VERSION = 1
-SPEAKERS_FILE = Path(__file__).resolve().parent / "speakers.json"
+
+# Runtime state directory. When running in containers, this is mounted as a
+# shared volume so the bridge (writer of status.json) and the proxy (writer
+# of speakers.json/overrides.json/logos) see each other's files. In a plain
+# checkout it defaults to soundtouch-radio/ so existing setups keep working.
+_PKG_DIR = Path(__file__).resolve().parent
+STATE_DIR = Path(os.environ.get("STATE_DIR") or _PKG_DIR)
+try:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass
+
+SPEAKERS_FILE = STATE_DIR / "speakers.json"
 SPEAKERS_BAK = SPEAKERS_FILE.with_suffix(".json.bak")
-STATUS_FILE = Path(__file__).resolve().parent / "status.json"
-OVERRIDES_FILE = Path(__file__).resolve().parent / "overrides.json"
+STATUS_FILE = STATE_DIR / "status.json"
+OVERRIDES_FILE = STATE_DIR / "overrides.json"
+LOGO_DIR = STATE_DIR / "logos"
+
+# First-run seeding: when STATE_DIR is a fresh volume distinct from the
+# package dir, copy any pre-existing config and logos from the image so the
+# new mount isn't empty. We never overwrite existing files in STATE_DIR.
+if STATE_DIR.resolve() != _PKG_DIR.resolve():
+    import shutil as _shutil
+    _seed_src = _PKG_DIR / "speakers.json"
+    if _seed_src.exists() and not SPEAKERS_FILE.exists():
+        try:
+            _shutil.copy2(_seed_src, SPEAKERS_FILE)
+        except OSError as _e:
+            log.warning("seed speakers.json failed: %s", _e)
+    _seed_logos = _PKG_DIR / "proxy" / "logos"
+    if _seed_logos.is_dir():
+        try:
+            LOGO_DIR.mkdir(parents=True, exist_ok=True)
+            for _f in _seed_logos.iterdir():
+                _dst = LOGO_DIR / _f.name
+                if _f.is_file() and not _dst.exists():
+                    _shutil.copy2(_f, _dst)
+        except OSError as _e:
+            log.warning("seed logos failed: %s", _e)
 
 # Per-speaker live subtitle override defaults.
 LOGO_MAX_BYTES = 2 * 1024 * 1024

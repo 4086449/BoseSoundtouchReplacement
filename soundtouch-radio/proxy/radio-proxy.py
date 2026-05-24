@@ -33,6 +33,7 @@ sys.path.insert(0, str(ROOT))
 from config import (  # noqa: E402
     BRIDGE_INTERNAL_URL,
     LOGO_ALLOWED_MIME,
+    LOGO_DIR,
     LOGO_MAX_BYTES,
     LOGO_MIME_EXT,
     PROXY_BIND_IP,
@@ -51,7 +52,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("radio-proxy")
 
 BASE_DIR = Path(__file__).resolve().parent
-LOGO_DIR = BASE_DIR / "logos"
 OPENAPI_FILE = BASE_DIR / "openapi.yaml"
 
 STATUS_STALE_SECONDS = 60
@@ -360,25 +360,25 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_get_config(self):
         with _CFG_LOCK:
             cfg = load_speakers()
-        self._send_json(200, cfg)
+        self._send_json(200, cfg, cors=True)
 
     def _serve_put_config(self):
         payload, err = self._read_json_body()
         if err:
-            return self._send_json(400, {"ok": False, "errors": [err]})
+            return self._send_json(400, {"ok": False, "errors": [err]}, cors=True)
         errors = validate_speakers(payload)
         if errors:
-            return self._send_json(422, {"ok": False, "errors": errors})
+            return self._send_json(422, {"ok": False, "errors": errors}, cors=True)
         try:
             with _CFG_LOCK:
                 save_speakers(payload)
                 _refresh_runtime(payload)
         except OSError as e:
             log.error("save_speakers failed: %s", e)
-            return self._send_json(500, {"ok": False, "errors": [str(e)]})
+            return self._send_json(500, {"ok": False, "errors": [str(e)]}, cors=True)
         log.info("speakers.json updated via PUT /config")
         _SSE.publish("config", payload)
-        self._send_json(200, {"ok": True, "config": payload})
+        self._send_json(200, {"ok": True, "config": payload}, cors=True)
 
     def _serve_post_discover(self):
         try:
@@ -409,12 +409,13 @@ class Handler(BaseHTTPRequestHandler):
                     "updated_at": 0,
                     "speakers": {},
                 },
+                cors=True,
             )
         try:
             with STATUS_FILE.open() as f:
                 data = json.load(f)
         except (OSError, ValueError) as e:
-            return self._send_json(500, {"ok": False, "errors": [str(e)]})
+            return self._send_json(500, {"ok": False, "errors": [str(e)]}, cors=True)
         try:
             updated_at = float(data.get("updated_at") or 0)
         except (TypeError, ValueError):
@@ -423,7 +424,7 @@ class Handler(BaseHTTPRequestHandler):
         data["age_seconds"] = age
         data["stale"] = age is None or age > STATUS_STALE_SECONDS
         data.setdefault("ok", True)
-        self._send_json(200, data)
+        self._send_json(200, data, cors=True)
 
     # ---- overrides endpoints ---------------------------------------------
 
