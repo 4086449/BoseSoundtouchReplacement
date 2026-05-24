@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "speakers": {
+    "living": {
+      "name": "Living Room",
+      "ip": "10.0.0.199",
+      "device_id": "",
+      "default_zone": "",
+      "enabled": true
+    }
+  },
+  "zones": {},
+  "stations": {
+    "radio1": {
+      "name": "VRT Radio 1",
+      "owner": "VRT",
+      "path": "/radio1.mp3",
+      "upstream": "http://icecast.vrtcdn.be/radio1-high.mp3",
+      "logo": "/logos/radio1.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/radio1.json"
+      }
+    }
+  },
+  "presets": {
+    "PRESET_1": "radio1"
+  }
+}
