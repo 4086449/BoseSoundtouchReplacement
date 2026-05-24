@@ -119,7 +119,10 @@ async def write_status(st, sid, **fields):
         entry["last_event_at"] = time.time()
         # Per-speaker playback context for the dashboard.
         np = st.now_playing.get(sid) or {}
+        station = np.get("station") or {}
         entry["current_station"] = np.get("station_key") or ""
+        entry["current_station_name"] = station.get("name") or ""
+        entry["current_logo"] = np.get("logo_url") or station.get("logo") or ""
         entry["current_subtitle"] = np.get("subtitle") or ""
         entry["current_override"] = st.override_text(sid)
         payload = {
@@ -384,6 +387,123 @@ async def verify_subtitle(ip, expected):
     return False, shown
 
 
+def _np_text(root, tag):
+    el = root.find(tag)
+    if el is None or el.text is None:
+        return ""
+    return el.text.strip()
+
+
+def parse_now_playing(root):
+    """Extract a flat dict from a <nowPlaying> element. Returns None if
+    the element isn't usable."""
+    if root is None:
+        return None
+    info = {"source": (root.get("source") or "").strip()}
+    if info["source"] == "STANDBY":
+        return info
+    ci = root.find("ContentItem")
+    if ci is not None:
+        info["location"] = ci.get("location") or ""
+        item = ci.find("itemName")
+        if item is not None and item.text:
+            info["item_name"] = item.text.strip()
+        ca = ci.find("containerArt")
+        if ca is not None and ca.text:
+            info["container_art"] = ca.text.strip()
+    info["artist"] = _np_text(root, "artist")
+    info["track"] = _np_text(root, "track")
+    info["album"] = _np_text(root, "album")
+    info["station_name"] = _np_text(root, "stationName")
+    art = root.find("art")
+    if art is not None and art.text:
+        info["art"] = art.text.strip()
+    stream = root.find("stream")
+    if stream is not None and stream.get("url"):
+        info["stream_url"] = stream.get("url")
+    return info
+
+
+def extract_now_playing_xml(message):
+    """Pull a <nowPlaying> element out of a WebSocket frame."""
+    if "<nowPlaying" not in message:
+        return None
+    try:
+        root = ET.fromstring(message)
+    except ET.ParseError:
+        return None
+    if root.tag == "nowPlaying":
+        return root
+    return root.find(".//nowPlaying")
+
+
+async def update_now_playing(state, sid, root):
+    """Refresh state.now_playing[sid] from a parsed <nowPlaying> element
+    (from either the WebSocket stream or the HTTP /now_playing endpoint).
+    Returns True if anything changed."""
+    info = parse_now_playing(root)
+    if info is None:
+        return False
+    if info.get("source") == "STANDBY":
+        had = sid in state.now_playing or sid in (state.overrides or {})
+        if had:
+            state.now_playing.pop(sid, None)
+            if state.overrides.pop(sid, None) is not None:
+                try:
+                    await asyncio.to_thread(save_overrides, state.overrides)
+                except OSError as e:
+                    log.debug("save_overrides on standby: %s", e)
+            await write_status(state, sid, last_event="standby")
+        return had
+    stations = state.stations() or {}
+    stream_url = info.get("stream_url") or ""
+    matched_key = ""
+    matched_station = None
+    if stream_url:
+        for key, st in stations.items():
+            if station_stream_url(st) == stream_url:
+                matched_key, matched_station = key, st
+                break
+    name = (
+        (matched_station or {}).get("name")
+        or info.get("item_name")
+        or info.get("station_name")
+        or ""
+    )
+    logo = (
+        station_logo_url(matched_station or {})
+        or info.get("art")
+        or info.get("container_art")
+        or ""
+    )
+    subtitle = info.get("artist") or ""
+    prev = state.now_playing.get(sid) or {}
+    np = {
+        "station_key": matched_key,
+        "station": matched_station or {"name": name, "logo": logo},
+        "subtitle": subtitle,
+        "stream_url": stream_url,
+        "logo_url": logo,
+    }
+    if np == prev:
+        return False
+    state.now_playing[sid] = np
+    await write_status(state, sid)
+    return True
+
+
+async def recover_now_playing(state, sid):
+    """On (re)connect, ask the speaker what it's actually showing."""
+    sp = state.speakers().get(sid) or {}
+    ip = sp.get("ip")
+    if not ip:
+        return
+    root = await asyncio.to_thread(fetch_now_playing, ip)
+    if root is None:
+        return
+    await update_now_playing(state, sid, root)
+
+
 async def refresh_subtitle(state, sid):
     """Re-send the current station's DIDL to the speaker so a changed
     subtitle (override or default) takes effect, then verify the speaker
@@ -513,6 +633,10 @@ async def listen_to_speaker(state, sid, cancel_event):
                 backoff_idx = 0
                 await write_status(state, sid, state="connected", last_error="", backoff_seconds=0)
                 log.info("[%s] connected", sid)
+                try:
+                    await recover_now_playing(state, sid)
+                except Exception as e:
+                    log.debug("[%s] recover_now_playing: %s", sid, e)
 
                 # Race the websocket reader against the cancel event so we
                 # can tear down promptly on reconfigure.
@@ -536,17 +660,14 @@ async def listen_to_speaker(state, sid, cancel_event):
                     except StopAsyncIteration:
                         break
                     log.debug("[%s] event: %s", sid, message)
-                    if is_standby_event(message):
-                        if sid in state.now_playing or sid in (state.overrides or {}):
-                            log.info("[%s] STANDBY -> clearing now_playing/override", sid)
-                            state.now_playing.pop(sid, None)
-                            if state.overrides.pop(sid, None) is not None:
-                                try:
-                                    await asyncio.to_thread(save_overrides, state.overrides)
-                                except OSError as e:
-                                    log.debug("save_overrides on standby: %s", e)
-                            await write_status(state, sid, last_event="standby")
-                        continue
+                    np_root = extract_now_playing_xml(message)
+                    if np_root is not None:
+                        try:
+                            await update_now_playing(state, sid, np_root)
+                        except Exception as e:
+                            log.debug("[%s] update_now_playing: %s", sid, e)
+                        if (np_root.get("source") or "") == "STANDBY":
+                            continue
                     preset_key = extract_preset_event(message)
                     if not preset_key:
                         continue
@@ -673,7 +794,7 @@ def _start_internal_server(state):
             self.wfile.write(body)
 
         def do_POST(self):
-            if self.path != "/internal/refresh":
+            if self.path not in ("/internal/refresh", "/internal/now_playing"):
                 return self._send(404, {"state": "error", "detail": "not found"})
             try:
                 length = int(self.headers.get("Content-Length") or "0")
@@ -687,7 +808,24 @@ def _start_internal_server(state):
             sid = str(payload.get("speaker_id") or "")
             if not sid:
                 return self._send(400, {"state": "error", "detail": "missing speaker_id"})
-            # Re-read overrides.json so we have the value the proxy just wrote.
+            if self.path == "/internal/now_playing":
+                future = asyncio.run_coroutine_threadsafe(recover_now_playing(state, sid), loop)
+                try:
+                    future.result(timeout=4.0)
+                except Exception as e:
+                    return self._send(500, {"state": "error", "detail": str(e)})
+                np = state.now_playing.get(sid) or {}
+                station = np.get("station") or {}
+                return self._send(200, {
+                    "ok": True,
+                    "speaker_id": sid,
+                    "station_key": np.get("station_key") or "",
+                    "station_name": station.get("name") or "",
+                    "logo": np.get("logo_url") or station.get("logo") or "",
+                    "subtitle": np.get("subtitle") or "",
+                    "stream_url": np.get("stream_url") or "",
+                })
+            # /internal/refresh: re-read overrides so we have the latest text.
             try:
                 state.overrides = load_overrides()
             except Exception as e:

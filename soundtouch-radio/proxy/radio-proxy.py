@@ -157,6 +157,26 @@ def _notify_bridge(speaker_id, text, timeout=4.0):
         return {"state": "error", "shown": None, "detail": str(e)}
 
 
+def _notify_bridge_now_playing(speaker_id, timeout=4.0):
+    """Ask the bridge to pull /now_playing from the speaker right now."""
+    body = json.dumps({"speaker_id": speaker_id}).encode("utf-8")
+    req = urllib.request.Request(
+        BRIDGE_INTERNAL_URL.rstrip("/") + "/internal/now_playing",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = r.read().decode("utf-8", errors="replace")
+            try:
+                return json.loads(raw)
+            except ValueError:
+                return {"ok": False, "detail": raw[:200]}
+    except Exception as e:
+        return {"ok": False, "detail": str(e)}
+
+
 # ---------------------------------------------------------------------------
 # Server-Sent Events broadcaster.
 # ---------------------------------------------------------------------------
@@ -767,8 +787,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_post_discover()
         if parsed.path == "/logos":
             return self._serve_post_logo()
+        if parsed.path.startswith("/now_playing/") and parsed.path.endswith("/refresh"):
+            sid = parsed.path[len("/now_playing/"):-len("/refresh")]
+            if sid:
+                return self._serve_post_now_playing_refresh(urllib.parse.unquote(sid))
         self.send_response(404)
         self.end_headers()
+
+    def _serve_post_now_playing_refresh(self, speaker_id):
+        result = _notify_bridge_now_playing(speaker_id)
+        code = 200 if result.get("ok") else 502
+        self._send_json(code, result, cors=True)
 
     def do_OPTIONS(self):
         # CORS preflight for the dashboard-facing endpoints.
