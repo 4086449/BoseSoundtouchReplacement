@@ -42,8 +42,32 @@ log = logging.getLogger("radio-proxy")
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_DIR = BASE_DIR / "logos"
+OPENAPI_FILE = BASE_DIR / "openapi.yaml"
 
 STATUS_STALE_SECONDS = 60
+
+SWAGGER_HTML = b"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>SoundTouch Radio Proxy API</title>
+  <link rel=\"stylesheet\" href=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui.css\">
+  <style>body{margin:0}</style>
+</head>
+<body>
+  <div id=\"swagger-ui\"></div>
+  <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: '/openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      tryItOutEnabled: true
+    });
+  </script>
+</body>
+</html>
+"""
 
 # Runtime config state — guarded by _CFG_LOCK because PUT/discover handlers
 # replace these dicts atomically while GET handlers read them.
@@ -301,12 +325,37 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
+    def _serve_openapi(self):
+        if not OPENAPI_FILE.is_file():
+            self.send_response(404)
+            self.end_headers()
+            return
+        body = OPENAPI_FILE.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/yaml")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_docs(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Content-Length", str(len(SWAGGER_HTML)))
+        self.end_headers()
+        self.wfile.write(SWAGGER_HTML)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/config":
             return self._serve_get_config()
         if parsed.path == "/status":
             return self._serve_get_status()
+        if parsed.path == "/openapi.yaml":
+            return self._serve_openapi()
+        if parsed.path in ("/docs", "/docs/"):
+            return self._serve_docs()
         if parsed.path.startswith("/logos/"):
             return self._serve_logo(parsed.path)
         if parsed.path.startswith("/metadata/"):
