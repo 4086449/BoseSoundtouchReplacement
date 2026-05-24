@@ -6,6 +6,7 @@ services:
     env_file: .env
     environment:
       - STATE_DIR=/app/state
+      - BRIDGE_INTERNAL_URL=http://bose-bridge:8092
     ports:
       - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
     volumes:

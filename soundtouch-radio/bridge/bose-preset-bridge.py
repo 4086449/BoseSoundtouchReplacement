@@ -21,6 +21,7 @@ import asyncio
 import html
 import json
 import logging
+import os
 import re
 import sys
 import threading
@@ -840,8 +841,9 @@ def _start_internal_server(state):
         def log_message(self, fmt, *args):
             log.debug("internal: " + fmt, *args)
 
-    server = ThreadingHTTPServer(("127.0.0.1", BRIDGE_INTERNAL_PORT), _Handler)
-    log.info("Internal HTTP server on 127.0.0.1:%d", BRIDGE_INTERNAL_PORT)
+    bind_ip = os.environ.get("BRIDGE_INTERNAL_BIND", "0.0.0.0")
+    server = ThreadingHTTPServer((bind_ip, BRIDGE_INTERNAL_PORT), _Handler)
+    log.info("Internal HTTP server on %s:%d", bind_ip, BRIDGE_INTERNAL_PORT)
     threading.Thread(target=server.serve_forever, name="bridge-internal", daemon=True).start()
 
 
