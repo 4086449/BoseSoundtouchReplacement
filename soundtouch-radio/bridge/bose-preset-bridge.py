@@ -85,14 +85,14 @@ class State:
 # Status reporting.
 # ---------------------------------------------------------------------------
 
-async def write_status(state, sid, **fields):
-    async with state.status_lock:
-        entry = state.status.setdefault(sid, {})
+async def write_status(st, sid, **fields):
+    async with st.status_lock:
+        entry = st.status.setdefault(sid, {})
         entry.update(fields)
         entry["last_event_at"] = time.time()
         payload = {
             "updated_at": time.time(),
-            "speakers": state.status,
+            "speakers": st.status,
         }
         try:
             save_status(payload)
