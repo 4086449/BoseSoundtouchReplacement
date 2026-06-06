@@ -32,10 +32,13 @@ BoseSoundtouchReplacement/
 │       └── settings.js
 ├── soundtouch-radio/           ← application code (copied into Docker image)
 │   ├── config.py
+│   ├── speakers.json           ← runtime state (gitignored, created from .example)
+│   ├── speakers.json.example
 │   ├── bridge/
 │   │   └── bose-preset-bridge.py
 │   ├── proxy/
 │   │   ├── radio-proxy.py
+│   │   ├── openapi.yaml
 │   │   └── logos/
 │   │       └── (station logo PNGs)
 │   └── soundtouch-api/
@@ -77,18 +80,21 @@ nano .env
 Set your IP addresses:
 
 ```env
-BOSE_IP=10.0.0.199
 PI_IP=10.0.0.241
 PROXY_PORT=8091
 PROXY_BIND_IP=0.0.0.0
+
+# Fallback values used only when soundtouch-radio/speakers.json is absent:
+BOSE_IP=10.0.0.199
 SPEAKER_NAME=Living Room
 ACTIVE_ZONE_NAME=
 ```
 
-Important distinction:
+Important distinctions:
 
 - `PROXY_BIND_IP=0.0.0.0` — where the container listens (always `0.0.0.0` for Docker)
 - `PI_IP` — the host IP advertised to the Bose in UPnP URLs
+- `BOSE_IP` / `SPEAKER_NAME` / `ACTIVE_ZONE_NAME` are a **single-speaker fallback**. As soon as `soundtouch-radio/speakers.json` exists they are ignored by the bridge and proxy. See [Multiple Bose speakers, zones and stations](#multiple-bose-speakers-zones-and-stations) below.
 
 ### 2. Build and start
 
@@ -141,7 +147,7 @@ If Docker is not available, see [`systemd/README.md`](systemd/README.md) for ins
 
 The `soundtouch-radio/soundtouch-api/` folder has helper scripts that source `.env` automatically:
 
-Play a station by preset number:
+Play a station by preset number (defaults to the speaker at `$BOSE_IP`):
 
 ```bash
 soundtouch-radio/soundtouch-api/bose-radio.sh 1
@@ -152,12 +158,22 @@ soundtouch-radio/soundtouch-api/bose-radio.sh 5
 soundtouch-radio/soundtouch-api/bose-radio.sh 6
 ```
 
-Send Bose key commands:
+Target a specific speaker from `speakers.json` by passing its id as a second
+argument; the IP is resolved by querying the proxy `/config` endpoint with
+`jq` and falls back to `$BOSE_IP` if `jq` is missing or the proxy is
+unreachable:
+
+```bash
+soundtouch-radio/soundtouch-api/bose-radio.sh radio1 kitchen
+soundtouch-radio/soundtouch-api/bose-radio.sh stubru living
+```
+
+Send Bose key commands (optional speaker id works the same way):
 
 ```bash
 soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_UP
-soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_DOWN
-soundtouch-radio/soundtouch-api/bose-key.sh PLAY_PAUSE
+soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_DOWN kitchen
+soundtouch-radio/soundtouch-api/bose-key.sh PLAY_PAUSE living
 soundtouch-radio/soundtouch-api/bose-key.sh MUTE
 ```
 
@@ -265,38 +281,69 @@ docker compose down -v
 docker compose up -d --build
 ```
 
-### Multiple Bose speakers and zones
+### Multiple Bose speakers, zones and stations
 
-In the Node-RED dashboard, edit the Speakers JSON:
+All runtime state lives in **`soundtouch-radio/speakers.json`** (gitignored).
+The proxy is the sole writer; the bridge watches the file's mtime and reloads
+automatically when it changes. Both the dashboard and the shell helpers go
+through the proxy's HTTP API.
+
+Create it once from the example:
+
+```bash
+cp soundtouch-radio/speakers.json.example soundtouch-radio/speakers.json
+```
+
+or open the dashboard at `http://PI_IP:1880/ui` and use the form editor to
+add speakers, zones, stations and presets. Saving from the dashboard does a
+`PUT /config` against the proxy, which validates the payload and writes a
+`.bak` of the previous version once per process.
+
+A minimal multi-speaker file looks like this:
 
 ```json
 {
-  "living": {
-    "name": "Living Room",
-    "ip": "10.0.0.199",
-    "device_id": "000C8AC19FAA"
+  "version": 1,
+  "speakers": {
+    "living":  { "name": "Living",  "ip": "192.168.168.117" },
+    "kitchen": { "name": "Kitchen", "ip": "192.168.168.253", "default_zone": "downstairs" }
   },
-  "kitchen": {
-    "name": "Kitchen",
-    "ip": "10.0.0.200",
-    "device_id": "000C8A..."
-  }
+  "zones": {
+    "downstairs": { "name": "Downstairs", "master": "kitchen", "members": ["living"] }
+  },
+  "stations": {
+    "radio1": { "name": "VRT Radio 1", "owner": "VRT", "path": "/radio1.mp3", "upstream": "https://..." }
+  },
+  "presets": { "PRESET_1": "radio1" }
 }
 ```
 
-Edit Zones JSON:
+Fields:
 
-```json
-{
-  "downstairs": {
-    "name": "Downstairs",
-    "master": "living",
-    "members": ["kitchen"]
-  }
-}
-```
+- **`speakers[id].default_zone`** — when set, pressing a preset on this
+  speaker grouples the listed zone first (the master + members are joined
+  via `/setZone`) and then plays on the master.
+- **`speakers[id].device_id`** — the Bose `deviceID`. Required for zone
+  grouping. Leave it blank and click **Discover device IDs** in the
+  dashboard (or `POST /config/discover` on the proxy) to fetch it from
+  `http://IP:8090/info` automatically.
+- **`speakers[id].enabled`** — set to `false` to disable the per-speaker
+  WebSocket task without removing the entry.
 
-When a station is played to a zone, Node-RED creates/updates the Bose zone first, then starts UPnP playback on the zone master.
+The proxy exposes a few additional endpoints on port `PROXY_PORT`:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /config` | current `speakers.json` |
+| `PUT  /config` | replace `speakers.json` (422 on validation errors) |
+| `POST /config/discover` | fill in missing `device_id`s from each Bose |
+| `GET  /status` | bridge state (per-speaker WebSocket status, last event, `stale` flag if older than 60s) |
+| `GET  /openapi.yaml` | full OpenAPI 3.1 specification |
+| `GET  /docs` | interactive Swagger UI for the API |
+
+The dashboard's status card polls `/status` every 10 seconds and shows a
+colored dot per speaker (`ok` / `warn` / `err` / `dim`). Use the **API docs**
+button in the dashboard to open `/docs` in a new tab.
 
 ### Custom stream URLs
 
@@ -359,3 +406,10 @@ Currently returns placeholder metadata. Included so ICY parsing can be added lat
 - The hardware preset button is used as a trigger, not as the actual stored playback source.
 - This Docker setup does **not** use `network_mode: host`. It publishes only the proxy port (`8091`). This works because the project uses fixed IP addresses and direct TCP/HTTP calls, not UPnP multicast discovery.
 
+## Verified original presets (backup)
+
+`curl http://10.0.0.199:8090/presets` (before any `setPresetButton` writes):
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?><presets><preset id="1" createdOn="1730052777" updatedOn="1730052777"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s18555" sourceAccount="" isPresetable="true"><itemName>VRT Radio 1</itemName><containerArt>http://cdn-radiotime-logos.tunein.com/s18555g.png</containerArt></ContentItem></preset><preset id="2" createdOn="1569612656" updatedOn="1600153136"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s25706" sourceAccount="" isPresetable="true"><itemName>VRT Radio 2 Limburg</itemName><containerArt>http://cdn-profiles.tunein.com/s25706/images/logoq.png?t=159075</containerArt></ContentItem></preset><preset id="3" createdOn="1541268447" updatedOn="1587886736"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s2611" sourceAccount="" isPresetable="true"><itemName>VRT Studio Brussel</itemName><containerArt>http://cdn-profiles.tunein.com/s2611/images/logoq.jpg</containerArt></ContentItem></preset><preset id="4" createdOn="1569612715" updatedOn="1613287045"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s69293" sourceAccount="" isPresetable="true"><itemName>Joe</itemName><containerArt>http://cdn-profiles.tunein.com/s25741/images/logoq.png</containerArt></ContentItem></preset><preset id="5" createdOn="1541278576" updatedOn="1598508677"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s48080" sourceAccount="" isPresetable="true"><itemName>Nostalgie Vlaanderen</itemName><containerArt>http://cdn-profiles.tunein.com/s115194/images/logoq.png?t=154885</containerArt></ContentItem></preset><preset id="6" createdOn="1729967874" updatedOn="1749730210"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s308755" sourceAccount="" isPresetable="true"><itemName>JOE Gold</itemName><containerArt>http://cdn-profiles.tunein.com/s308755/images/logog.jpg?t=638449028770000000</containerArt></ContentItem></preset></presets>
+```

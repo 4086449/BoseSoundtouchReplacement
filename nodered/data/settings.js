@@ -11,6 +11,9 @@ module.exports = {
         }
     },
     functionExternalModules: false,
+    functionGlobalContext: {
+        fetch: globalThis.fetch
+    },
     editorTheme: {
         projects: {
             enabled: false
