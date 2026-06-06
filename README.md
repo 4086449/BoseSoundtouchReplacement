@@ -1,104 +1,410 @@
-# Bose SoundTouch Replacement
+# Bose SoundTouch hardware presets via Raspberry Pi UPnP bridge
 
-I need an alternative for the Bose SoundTouch app now that it is deprecated.
-I want to keep basic control, internet radio/presets and full multi-room behavior.
-The phone is only a controller, not the audio source. The radio plays directly
-on the speakers, just like before, including from the physical IR remote.
+This project makes Bose SoundTouch hardware preset buttons play web radio again by using a Raspberry Pi as a local bridge.
 
-## Goal
+It was created after the native Bose `LOCAL_INTERNET_RADIO` preset route stored successfully but played as `INVALID_SOURCE`. The working route is UPnP AVTransport:
 
-Recreate this experience:
+```text
+Bose hardware preset button
+  → Bose emits a WebSocket preset event
+  → Raspberry Pi bridge detects <preset id="1">
+  → Pi sends UPnP SetAVTransportURI + Play to Bose
+  → Bose pulls http://PI_IP:8091/radio1.mp3
+  → Pi proxy follows broadcaster redirects
+  → music plays
+```
 
-- Press preset 1 -> Bose starts Radio 1 in living room + kitchen
-- Press preset 2 -> Bose starts station 2 in selected rooms
-- Phone is only a controller, not the audio source
-- Radio keeps playing directly on the Bose speakers
-- The physical IR remote keeps working with the same presets
+## Folder layout
 
-Built on:
+```text
+BoseSoundtouchReplacement/
+├── .env                        ← single source of truth for all IPs/ports
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
+├── nodered/
+│   ├── Dockerfile
+│   ├── README.md
+│   └── data/
+│       ├── flows.json
+│       ├── package.json
+│       └── settings.js
+├── soundtouch-radio/           ← application code (copied into Docker image)
+│   ├── config.py
+│   ├── speakers.json           ← runtime state (gitignored, created from .example)
+│   ├── speakers.json.example
+│   ├── bridge/
+│   │   └── bose-preset-bridge.py
+│   ├── proxy/
+│   │   ├── radio-proxy.py
+│   │   ├── openapi.yaml
+│   │   └── logos/
+│   │       └── (station logo PNGs)
+│   └── soundtouch-api/
+│       ├── bose-key.sh
+│       ├── bose-radio.sh
+│       └── play-bose-upnp.sh
+└── systemd/                    ← alternative: bare-metal deployment
+    ├── README.md
+    ├── install.sh
+    ├── bose-preset-bridge.service
+    └── soundtouch-radio-proxy.service
+```
 
-- Home Assistant
-- Node-RED
-- Mosquitto MQTT
-- Gerbera (DLNA radio relay) - the only viable source path on this device
-- Radio Browser (station catalog, build-time only)
+## Preset mapping
 
-## Why Gerbera (and not TuneIn / direct stream URLs)
+| Hardware preset | Station | Local proxy URL |
+|---:|---|---|
+| 1 | VRT Radio 1 | `http://PI_IP:8091/radio1.mp3` |
+| 2 | VRT Radio 2 Limburg | `http://PI_IP:8091/radio2-limburg.mp3` |
+| 3 | VRT Studio Brussel | `http://PI_IP:8091/stubru.mp3` |
+| 4 | Joe | `http://PI_IP:8091/joe.mp3` |
+| 5 | Nostalgie Vlaanderen | `http://PI_IP:8091/nostalgie.mp3` |
+| 6 | JOE Gold | `http://PI_IP:8091/joe-gold.mp3` |
 
-Probing the speaker (`curl http://<bose>:8090/sources`) on this firmware shows:
+---
 
-- TUNEIN source is **gone** - removed by Bose. Existing presets return
-  `INVALID_SOURCE`. The IR remote presets are currently dead too.
-- INTERNET_RADIO source is **not accepted** - `UNKNOWN_SOURCE_ERROR (1005)`.
-- UPNP is available when a DLNA server is on the LAN, and it is
-  `multiroomallowed="true"`.
+## Quick start (Docker — recommended)
 
-So the only working path for internet radio is: Gerbera on the Pi advertises
-the streams as DLNA items, the speaker plays them via UPNP, multi-room works,
-and `/setPresetButton` writes the same UPNP `ContentItem`s into slots 1-6 so
-the IR remote works again.
+### 1. Clone and configure
 
-## Stack
+```bash
+ssh pi@PI_IP
+git clone https://github.com/4086449/BoseSoundtouchReplacement.git
+cd BoseSoundtouchReplacement
+cp .env.example .env
+nano .env
+```
 
-| Service | Purpose | Default URL |
-| --- | --- | --- |
-| `homeassistant` | Control surface, dashboard, entities | http://pi:8123 |
-| `nodered` | Orchestration: presets, multi-room, policy, polling, library build | http://pi:1880 |
-| `mosquitto` | MQTT broker between HA and Node-RED | tcp://pi:1883 |
-| `mqtt-explorer-web` | Live MQTT topic inspector for debugging | http://pi:4000 |
-| `gerbera` | DLNA server exposing the 6 radio streams (host networking) | http://pi:49152 |
-| `wiremock` (profile `mock`) | Fake SoundTouch API for offline flow dev | http://pi:8090 |
+Set your IP addresses:
 
-## Bring-up on the Pi
+```env
+PI_IP=10.0.0.241
+PROXY_PORT=8091
+PROXY_BIND_IP=0.0.0.0
 
-1. Clone this repo onto the Pi.
-2. `cp .env.example .env` and edit `BOSE_HOST` if your speaker IP differs.
-   `GERBERA_URL` is preset to `http://10.0.0.241:49152` (the Pi's LAN IP).
-3. `docker compose up -d` (Portainer can adopt the stack via "Add stack ->
-   Web editor" pointing at the same `docker-compose.yml`, or via Git).
-4. First-run Node-RED setup: open http://pi:1880, then **Menu -> Import**,
-   pick **Clipboard**, paste the contents of `node-red/data/flows.json`,
-   and deploy. (Or copy that file into the `nodered_data` volume directly.)
-5. Open Home Assistant at http://pi:8123, complete the onboarding, then
-   reload YAML (Developer Tools -> YAML -> All).
-6. In HA, run `script.st_rebuild_library` once. This:
-   - Resolves all 6 stations via Radio Browser (Hasselt-biased ranking).
-   - Publishes them as DLNA items into Gerbera.
-   - Writes `node-red/data/presets.json` with the UPNP `ContentItem` for
-     each preset.
-7. Verify `curl http://<bose>:8090/sources | grep UPNP` now shows
-   `status="READY"`.
-8. Try `script.st_preset_1` from the dashboard with one room toggled on.
-9. Once `now_playing` polling has run once per device (10s tick), every
-   room in `node-red/data/rooms.json` will have its MAC auto-filled and
-   multi-room (`/setZone`) is ready.
-10. Run `script.st_push_presets` to write the UPNP `ContentItem`s into the
-    speakers' preset slots 1-6. The physical IR remote works again.
+# Fallback values used only when soundtouch-radio/speakers.json is absent:
+BOSE_IP=10.0.0.199
+SPEAKER_NAME=Living Room
+ACTIVE_ZONE_NAME=
+```
 
-## Adding more rooms
+Important distinctions:
 
-Edit `node-red/data/rooms.json`, add the device's IP, redeploy. State polling
-will fill in `mac` automatically on the next tick.
+- `PROXY_BIND_IP=0.0.0.0` — where the container listens (always `0.0.0.0` for Docker)
+- `PI_IP` — the host IP advertised to the Bose in UPnP URLs
+- `BOSE_IP` / `SPEAKER_NAME` / `ACTIVE_ZONE_NAME` are a **single-speaker fallback**. As soon as `soundtouch-radio/speakers.json` exists they are ignored by the bridge and proxy. See [Multiple Bose speakers, zones and stations](#multiple-bose-speakers-zones-and-stations) below.
 
-## Editing the station catalog
+### 2. Build and start
 
-Edit `config/gerbera/radio-stations.json`, then run `script.st_rebuild_library`
-in HA (or publish to `soundtouch/cmd/rebuild_library`). After a successful
-resolve, copy `stationuuid` and the resolved URL back into the entry as
-`pinned_uuid` / `pinned_url` to skip the search next time.
+```bash
+docker compose up -d --build
+```
 
-## MQTT topic contract
+### 3. Verify
 
-| Topic | Direction | Payload |
-| --- | --- | --- |
-| `soundtouch/cmd/preset` | HA -> Node-RED | `{preset:1..6, rooms:[ids], policy:"continue"\|"strict"}` |
-| `soundtouch/cmd/rebuild_library` | HA -> Node-RED | `{trigger:"ha"}` |
-| `soundtouch/cmd/push_presets` | HA -> Node-RED | `{trigger:"ha"}` |
-| `soundtouch/state/<room>` | Node-RED -> HA | per-preset result, retained |
-| `soundtouch/state/<room>/now_playing` | Node-RED -> HA | source, item, mac, ts |
-| `soundtouch/state/last_command` | Node-RED -> HA | summary of last preset trigger |
-| `soundtouch/state/library` | Node-RED -> HA | `{ok, count}` after rebuild |
-| `soundtouch/status/nodered` | Node-RED LWT | `online` / `offline`, retained |
+Test the stream proxy:
+
+```bash
+curl -I http://PI_IP:8091/radio1.mp3
+```
+
+Expected: `HTTP/1.0 200 OK` with `Content-Type: audio/mpeg`.
+
+Press a Bose hardware preset button, then check:
+
+```bash
+curl -s "http://BOSE_IP:8090/now_playing"
+```
+
+Expected: `<ContentItem source="UPNP" ...>` with `<playStatus>PLAY_STATE</playStatus>`.
+
+### 4. View logs
+
+```bash
+docker compose logs -f radio-proxy
+docker compose logs -f bose-bridge
+docker compose logs -f nodered
+```
+
+### 5. Stop / restart
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+---
+
+## Alternative: bare-metal with systemd
+
+If Docker is not available, see [`systemd/README.md`](systemd/README.md) for instructions on running directly with systemd services.
+
+---
+
+## Shell utilities
+
+The `soundtouch-radio/soundtouch-api/` folder has helper scripts that source `.env` automatically:
+
+Play a station by preset number (defaults to the speaker at `$BOSE_IP`):
+
+```bash
+soundtouch-radio/soundtouch-api/bose-radio.sh 1
+soundtouch-radio/soundtouch-api/bose-radio.sh 2
+soundtouch-radio/soundtouch-api/bose-radio.sh 3
+soundtouch-radio/soundtouch-api/bose-radio.sh 4
+soundtouch-radio/soundtouch-api/bose-radio.sh 5
+soundtouch-radio/soundtouch-api/bose-radio.sh 6
+```
+
+Target a specific speaker from `speakers.json` by passing its id as a second
+argument; the IP is resolved by querying the proxy `/config` endpoint with
+`jq` and falls back to `$BOSE_IP` if `jq` is missing or the proxy is
+unreachable:
+
+```bash
+soundtouch-radio/soundtouch-api/bose-radio.sh radio1 kitchen
+soundtouch-radio/soundtouch-api/bose-radio.sh stubru living
+```
+
+Send Bose key commands (optional speaker id works the same way):
+
+```bash
+soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_UP
+soundtouch-radio/soundtouch-api/bose-key.sh VOLUME_DOWN kitchen
+soundtouch-radio/soundtouch-api/bose-key.sh PLAY_PAUSE living
+soundtouch-radio/soundtouch-api/bose-key.sh MUTE
+```
+
+Quick play preset 1:
+
+```bash
+soundtouch-radio/soundtouch-api/play-bose-upnp.sh
+```
+
+---
+
+## Keep dummy Bose presets stored
+
+The hardware bridge needs the Bose to emit preset selection events. On some firmware versions, this requires something to be stored in each hardware preset slot.
+
+It is okay if the stored Bose preset itself is broken. The bridge only uses the button press event and then overrides playback with UPnP.
+
+Store a dummy preset:
+
+```bash
+curl -X POST "http://BOSE_IP:8090/storePreset" \
+  -H "Content-Type: application/xml" \
+  --data-binary @- <<EOF
+<preset id="1">
+  <ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" location="http://PI_IP:8091/radio1.mp3">
+    <itemName>VRT Radio 1</itemName>
+  </ContentItem>
+</preset>
+EOF
+```
+
+Repeat for preset IDs 2–6. The dummy preset may show `INVALID_SOURCE`; that is expected.
+
+---
+
+## Troubleshooting
+
+### Proxy works but Bose does not play
+
+```bash
+curl -I http://PI_IP:8091/radio1.mp3
+soundtouch-radio/soundtouch-api/bose-radio.sh 1
+curl -s "http://BOSE_IP:8090/now_playing"
+```
+
+If `bose-radio.sh 1` works but the hardware button does not, the issue is the bridge or WebSocket event parsing.
+
+### Hardware button event appears but nothing plays
+
+```bash
+docker compose logs -f bose-bridge
+```
+
+The bridge must show:
+
+```text
+PRESET_1: playing VRT Radio 1
+Now playing VRT Radio 1
+```
+
+### Bose shows INVALID_SOURCE
+
+That is the old native preset path failing. The bridge should override it shortly after the button press. Check that the bose-bridge container is running.
+
+### WebSocket cannot connect
+
+Verify the Bose is reachable:
+
+```bash
+curl -s "http://BOSE_IP:8090/info"
+```
+
+Update `BOSE_IP` in `.env` and restart: `docker compose restart bose-bridge`.
+
+---
+
+## Node-RED multi-speaker dashboard
+
+The Docker stack includes a Node-RED dashboard in `./nodered/`.
+
+Start the full stack:
+
+```bash
+docker compose up -d --build
+```
+
+Open:
+
+```text
+http://PI_IP:1880/ui
+```
+
+The dashboard lets you dynamically edit:
+
+- the speakers map
+- Bose zones/groups
+- preset-to-station playback
+- volume, mute, play/pause, and power controls
+- custom stream URL playback
+
+Node-RED stores its runtime state in the Docker volume `nodered-data`. To re-seed from project files:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+### Multiple Bose speakers, zones and stations
+
+All runtime state lives in **`soundtouch-radio/speakers.json`** (gitignored).
+The proxy is the sole writer; the bridge watches the file's mtime and reloads
+automatically when it changes. Both the dashboard and the shell helpers go
+through the proxy's HTTP API.
+
+Create it once from the example:
+
+```bash
+cp soundtouch-radio/speakers.json.example soundtouch-radio/speakers.json
+```
+
+or open the dashboard at `http://PI_IP:1880/ui` and use the form editor to
+add speakers, zones, stations and presets. Saving from the dashboard does a
+`PUT /config` against the proxy, which validates the payload and writes a
+`.bak` of the previous version once per process.
+
+A minimal multi-speaker file looks like this:
+
+```json
+{
+  "version": 1,
+  "speakers": {
+    "living":  { "name": "Living",  "ip": "192.168.168.117" },
+    "kitchen": { "name": "Kitchen", "ip": "192.168.168.253", "default_zone": "downstairs" }
+  },
+  "zones": {
+    "downstairs": { "name": "Downstairs", "master": "kitchen", "members": ["living"] }
+  },
+  "stations": {
+    "radio1": { "name": "VRT Radio 1", "owner": "VRT", "path": "/radio1.mp3", "upstream": "https://..." }
+  },
+  "presets": { "PRESET_1": "radio1" }
+}
+```
+
+Fields:
+
+- **`speakers[id].default_zone`** — when set, pressing a preset on this
+  speaker grouples the listed zone first (the master + members are joined
+  via `/setZone`) and then plays on the master.
+- **`speakers[id].device_id`** — the Bose `deviceID`. Required for zone
+  grouping. Leave it blank and click **Discover device IDs** in the
+  dashboard (or `POST /config/discover` on the proxy) to fetch it from
+  `http://IP:8090/info` automatically.
+- **`speakers[id].enabled`** — set to `false` to disable the per-speaker
+  WebSocket task without removing the entry.
+
+The proxy exposes a few additional endpoints on port `PROXY_PORT`:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /config` | current `speakers.json` |
+| `PUT  /config` | replace `speakers.json` (422 on validation errors) |
+| `POST /config/discover` | fill in missing `device_id`s from each Bose |
+| `GET  /status` | bridge state (per-speaker WebSocket status, last event, `stale` flag if older than 60s) |
+| `GET  /openapi.yaml` | full OpenAPI 3.1 specification |
+| `GET  /docs` | interactive Swagger UI for the API |
+
+The dashboard's status card polls `/status` every 10 seconds and shows a
+colored dot per speaker (`ok` / `warn` / `err` / `dim`). Use the **API docs**
+button in the dashboard to open `/docs` in a new tab.
+
+### Custom stream URLs
+
+The radio proxy supports a dynamic proxy endpoint:
+
+```text
+http://PI_IP:8091/proxy.mp3?url=ENCODED_HTTP_OR_HTTPS_STREAM_URL
+```
+
+The Node-RED dashboard uses this when "proxy custom URL via Pi" is enabled. This is useful for ordinary MP3/AAC internet radio streams. It does not convert web players, DRM services, YouTube, Spotify, AirPlay, or Bluetooth audio.
+
+---
+
+## Display metadata
+
+The Bose middle display line is a prioritized subtitle. Default priority:
+
+1. Fresh live metadata (when ICY parsing is added later)
+2. Active zone name
+3. Speaker/device name
+4. Station owner (e.g. VRT, DPG Media)
+
+The UPnP metadata sent to Bose:
+
+- `dc:title` = station name
+- `dc:creator` / `upnp:artist` = chosen subtitle
+- `upnp:album` = `Live Radio`
+- `upnp:albumArtURI` = station logo URL (if present)
+
+### Logo files
+
+Put optional PNG/JPG files in `soundtouch-radio/proxy/logos/`:
+
+```text
+radio1.png
+radio2-limburg.png
+stubru.png
+joe.png
+nostalgie.png
+joe-gold.png
+```
+
+Served at `http://PI_IP:8091/logos/radio1.png`.
+
+### Metadata endpoints
+
+```bash
+curl http://PI_IP:8091/metadata/radio1.json
+```
+
+Currently returns placeholder metadata. Included so ICY parsing can be added later without changing the bridge or Node-RED logic.
+
+---
+
+## Notes
+
+- `sender="Gabbo"` is required for Bose key commands; `sender="curl"` caused XML parse errors.
+- The direct Bose `LOCAL_INTERNET_RADIO` path stored presets successfully but produced `INVALID_SOURCE`.
+- UPnP playback works once the stream is proxied through the Pi.
+- The hardware preset button is used as a trigger, not as the actual stored playback source.
+- This Docker setup does **not** use `network_mode: host`. It publishes only the proxy port (`8091`). This works because the project uses fixed IP addresses and direct TCP/HTTP calls, not UPnP multicast discovery.
 
 ## Verified original presets (backup)
 
@@ -107,21 +413,3 @@ resolve, copy `stationuuid` and the resolved URL back into the entry as
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?><presets><preset id="1" createdOn="1730052777" updatedOn="1730052777"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s18555" sourceAccount="" isPresetable="true"><itemName>VRT Radio 1</itemName><containerArt>http://cdn-radiotime-logos.tunein.com/s18555g.png</containerArt></ContentItem></preset><preset id="2" createdOn="1569612656" updatedOn="1600153136"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s25706" sourceAccount="" isPresetable="true"><itemName>VRT Radio 2 Limburg</itemName><containerArt>http://cdn-profiles.tunein.com/s25706/images/logoq.png?t=159075</containerArt></ContentItem></preset><preset id="3" createdOn="1541268447" updatedOn="1587886736"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s2611" sourceAccount="" isPresetable="true"><itemName>VRT Studio Brussel</itemName><containerArt>http://cdn-profiles.tunein.com/s2611/images/logoq.jpg</containerArt></ContentItem></preset><preset id="4" createdOn="1569612715" updatedOn="1613287045"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s69293" sourceAccount="" isPresetable="true"><itemName>Joe</itemName><containerArt>http://cdn-profiles.tunein.com/s25741/images/logoq.png</containerArt></ContentItem></preset><preset id="5" createdOn="1541278576" updatedOn="1598508677"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s48080" sourceAccount="" isPresetable="true"><itemName>Nostalgie Vlaanderen</itemName><containerArt>http://cdn-profiles.tunein.com/s115194/images/logoq.png?t=154885</containerArt></ContentItem></preset><preset id="6" createdOn="1729967874" updatedOn="1749730210"><ContentItem source="TUNEIN" type="stationurl" location="/v1/playback/station/s308755" sourceAccount="" isPresetable="true"><itemName>JOE Gold</itemName><containerArt>http://cdn-profiles.tunein.com/s308755/images/logog.jpg?t=638449028770000000</containerArt></ContentItem></preset></presets>
 ```
-
-The Node-RED "push presets" flow also writes a fresh backup
-(`/data/presets-backup-<room>-<ts>.xml`) the first time it runs per room.
-
-## Known constraints
-
-- **Portable speaker** as zone master can drop the multi-room zone when it
-  sleeps. The expansion logic prefers a mains-powered device as master when
-  any are present in the selection.
-- Gerbera DLNA item URIs may change across full library rebuilds; treat
-  `presets.json` as generated and re-run "rebuild library" + "push presets"
-  in that order after edits.
-- `mqtt-explorer-web` and Mosquitto run anonymous and are intended for the
-  local LAN only. Do not expose to WAN.
-- Spotify and AirPlay sources are still `READY` on the device but are out
-  of v1 scope.
-
-See `PLAN.md` for the full design rationale.

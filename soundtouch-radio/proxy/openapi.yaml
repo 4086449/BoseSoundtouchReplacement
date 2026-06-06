@@ -1,0 +1,469 @@
+openapi: 3.1.0
+info:
+  title: SoundTouch Radio Proxy
+  version: "1.0.0"
+  description: |
+    Local HTTP proxy for Bose SoundTouch speakers. Serves audio streams,
+    station logos and live metadata, and owns `speakers.json` (the single
+    source of truth for speakers, zones, stations and preset mappings).
+servers:
+  - url: http://{host}:{port}
+    description: Proxy on the Raspberry Pi
+    variables:
+      host:
+        default: 10.0.0.241
+        description: PI_IP from your .env
+      port:
+        default: "8091"
+        description: PROXY_PORT from your .env
+
+tags:
+  - name: config
+    description: Read and update speakers.json
+  - name: status
+    description: Live bridge state
+  - name: audio
+    description: Streams, logos and live metadata
+  - name: overrides
+    description: Per-speaker live subtitle overrides (ephemeral)
+  - name: events
+    description: Server-Sent Events stream
+
+paths:
+  /config:
+    get:
+      tags: [config]
+      summary: Get the current speakers.json
+      responses:
+        "200":
+          description: Current config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Config" }
+    put:
+      tags: [config]
+      summary: Replace speakers.json
+      description: |
+        The full config is validated, written atomically to disk, and the
+        proxy's in-memory station/stream tables are refreshed in place. On
+        the first successful PUT per process the previous file is snapshot
+        to `speakers.json.bak`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Config" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PutConfigOk" }
+        "400":
+          description: Malformed JSON
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Errors" }
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Errors" }
+
+  /config/discover:
+    post:
+      tags: [config]
+      summary: Auto-fill missing device_id values
+      description: |
+        For every enabled speaker with an empty `device_id`, fetch
+        `http://IP:8090/info` and parse the device id out. If anything
+        changed, the config is validated, saved and the result returned.
+      responses:
+        "200":
+          description: Discovery complete
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoverOk" }
+        "422":
+          description: Discovered config failed validation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Errors" }
+        "500":
+          description: Discovery error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Errors" }
+
+  /status:
+    get:
+      tags: [status]
+      summary: Get the latest bridge status
+      description: |
+        Returns the contents of `status.json` (last write by the bridge)
+        augmented with `age_seconds` and a `stale` flag (true when the
+        status is older than 60 seconds or the file does not exist).
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+
+  /openapi.yaml:
+    get:
+      tags: [config]
+      summary: This OpenAPI document
+      responses:
+        "200":
+          description: YAML
+          content:
+            application/yaml: {}
+
+  /docs:
+    get:
+      tags: [config]
+      summary: Swagger UI for this API
+      responses:
+        "200":
+          description: HTML page rendering the API docs
+          content:
+            text/html: {}
+
+  /{station}.mp3:
+    get:
+      tags: [audio]
+      summary: Audio stream for a configured station
+      description: |
+        The Bose pulls these URLs directly. The proxy follows broadcaster
+        redirects/tokens and streams the audio back. Use `GET /config` to
+        discover the available station paths.
+      parameters:
+        - in: path
+          name: station
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: audio/mpeg stream
+        "404": { description: Unknown station }
+        "502": { description: Upstream error }
+        "504": { description: Upstream timeout }
+
+  /proxy.mp3:
+    get:
+      tags: [audio]
+      summary: Ad-hoc upstream proxy
+      parameters:
+        - in: query
+          name: url
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        "200": { description: audio/mpeg stream }
+        "404": { description: Missing or invalid url }
+
+  /logos/{filename}:
+    get:
+      tags: [audio]
+      summary: Station logo
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Image }
+        "404": { description: Logo not found }
+
+  /metadata/{station}.json:
+    get:
+      tags: [audio]
+      summary: Latest ICY metadata for a station
+      parameters:
+        - in: path
+          name: station
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Metadata payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StationMetadata" }
+        "404": { description: Unknown station }
+
+  /logos:
+    get:
+      tags: [audio]
+      summary: List uploaded station logos
+      responses:
+        "200":
+          description: Available logo paths
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logos:
+                    type: array
+                    items: { type: string }
+    post:
+      tags: [audio]
+      summary: Upload a new station logo
+      description: |
+        Stores the file in `proxy/logos/` and returns the path that can be
+        used as a station `logo` value. Max 2 MB, image MIME types only.
+        Filenames are sanitized; the extension is forced from the MIME type.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                  description: Optional friendly filename stem (without extension)
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  path: { type: string }
+                  size: { type: integer }
+                  mime: { type: string }
+        "413": { description: Too large }
+        "415": { description: Unsupported MIME type }
+
+  /overrides:
+    get:
+      tags: [overrides]
+      summary: Current per-speaker subtitle overrides
+      responses:
+        "200":
+          description: Map of speaker id to override entry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/OverrideEntry" }
+
+  /overrides/{speaker_id}:
+    put:
+      tags: [overrides]
+      summary: Set or clear the live subtitle override for a speaker
+      description: |
+        Empty `text` clears the override. The proxy notifies the bridge,
+        which pushes a fresh UPnP DIDL to the speaker and then polls
+        `/now_playing` to confirm the change actually rendered. The
+        response carries the verified outcome.
+      parameters:
+        - in: path
+          name: speaker_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+      responses:
+        "200":
+          description: Applied (verified on speaker)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+        "409":
+          description: Mismatch — speaker shows a different value than sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+        "502":
+          description: Bridge unreachable or other transport error
+        "504":
+          description: Verification timed out
+    delete:
+      tags: [overrides]
+      summary: Clear the live subtitle override for a speaker
+      parameters:
+        - in: path
+          name: speaker_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverrideResult" }
+
+  /events:
+    get:
+      tags: [events]
+      summary: Server-Sent Events stream
+      description: |
+        Long-lived `text/event-stream` connection. Emits events as they
+        happen, with an initial snapshot on connect:
+        * `status` — full `status.json` payload (per-speaker state).
+        * `metadata` — updated ICY metadata for one station.
+        * `override` — full overrides map.
+        * `config` — new `speakers.json` after a successful PUT.
+
+        Keepalive comments are sent every 25 s.
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream: {}
+
+components:
+  schemas:
+    Config:
+      type: object
+      required: [version, speakers, zones, stations, presets]
+      properties:
+        version: { type: integer, enum: [1] }
+        speakers:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/Speaker" }
+        zones:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/Zone" }
+        stations:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/Station" }
+        presets:
+          type: object
+          description: PRESET_1..PRESET_6 -> station id
+          additionalProperties: { type: string }
+    Speaker:
+      type: object
+      required: [name, ip]
+      properties:
+        name: { type: string }
+        ip:
+          type: string
+          description: IPv4 or hostname reachable from the Pi
+        device_id:
+          type: string
+          description: Bose device id, auto-filled by /config/discover
+        default_zone:
+          type: string
+          description: Optional zone id this speaker becomes master of on play
+        enabled: { type: boolean, default: true }
+    Zone:
+      type: object
+      required: [master]
+      properties:
+        name: { type: string }
+        master: { type: string, description: Speaker id that hosts the zone }
+        members:
+          type: array
+          items: { type: string }
+    Station:
+      type: object
+      required: [name, path, upstream]
+      properties:
+        name: { type: string }
+        owner: { type: string }
+        path:
+          type: string
+          description: Path served by this proxy (must start with /)
+        upstream:
+          type: string
+          format: uri
+          description: http(s) upstream the proxy fetches from
+        logo: { type: string }
+        live_metadata:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            source: { type: string, enum: [icy] }
+            endpoint: { type: string }
+    Status:
+      type: object
+      properties:
+        ok: { type: boolean }
+        stale: { type: boolean }
+        age_seconds: { type: number, nullable: true }
+        updated_at: { type: number, description: Unix epoch seconds }
+        speakers:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/SpeakerStatus" }
+    SpeakerStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [connected, connecting, error, disabled]
+        last_event: { type: string }
+        last_event_at: { type: number }
+        last_error: { type: string }
+        backoff_seconds: { type: number }
+        current_station:
+          type: string
+          description: Station id currently playing on this speaker (empty if idle)
+        current_subtitle:
+          type: string
+          description: Subtitle most recently sent to the speaker
+        current_override:
+          type: string
+          description: Live override text in effect (empty when not overridden)
+    OverrideEntry:
+      type: object
+      properties:
+        text: { type: string }
+        ts: { type: number, description: Unix epoch when set }
+        state:
+          type: string
+          enum: [pending, applied, mismatch, timeout, error]
+        shown: { type: string, nullable: true, description: Last value the speaker reported back }
+    OverrideResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        state:
+          type: string
+          enum: [applied, mismatch, timeout, idle, cleared, error, noop]
+        sent: { type: string }
+        shown: { type: string, nullable: true }
+        detail: { type: string }
+    StationMetadata:
+      type: object
+      properties:
+        station: { type: string }
+        artist: { type: string }
+        title: { type: string }
+        raw: { type: string }
+        updated_at: { type: number }
+        enabled: { type: boolean }
+    PutConfigOk:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        config: { $ref: "#/components/schemas/Config" }
+    DiscoverOk:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        changed: { type: boolean }
+        config: { $ref: "#/components/schemas/Config" }
+    Errors:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [false] }
+        errors:
+          type: array
+          items: { type: string }
