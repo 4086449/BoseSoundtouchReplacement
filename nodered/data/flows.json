@@ -528,5 +528,122 @@
         "x": 540,
         "y": 580,
         "wires": []
+    },
+    {
+        "id": "ui_template_preset_store",
+        "type": "ui_template",
+        "z": "flow_soundtouch",
+        "group": "ui_group_main",
+        "name": "Preset storage",
+        "order": 2,
+        "width": 12,
+        "height": 8,
+        "format": "\n<style>\n  .ps-wrap, .ps-wrap * { box-sizing: border-box; }\n  .ps-wrap { margin: 12px 0 0 0; padding: 14px; background: #1a2128; border: 1px solid #2d3742; border-radius: 10px; color: #e6edf3; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; }\n  .ps-wrap h3 { margin: 0 0 10px 0; font-size: 15px; }\n  .ps-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }\n  .ps-btn { min-height: 40px; padding: 8px 12px; border: 1px solid #2d3742; border-radius: 8px; background: #232c35; color: #e6edf3; cursor: pointer; font-size: 14px; }\n  .ps-btn:hover { border-color: #3b82f6; }\n  .ps-btn.primary { background: #3b82f6; border-color: #3b82f6; color: #fff; }\n  .ps-btn.warn { background: rgba(245,158,11,.15); border-color: #f59e0b; color: #f59e0b; }\n  .ps-input, .ps-select { min-height: 40px; padding: 8px 10px; border: 1px solid #2d3742; border-radius: 6px; background: #232c35; color: #e6edf3; font-size: 14px; min-width: 0; }\n  .ps-input:focus, .ps-select:focus { outline: none; border-color: #3b82f6; }\n  .ps-station { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin: 8px 0; }\n  .ps-msg { color: #8b98a5; font-size: 12px; }\n  .ps-msg.err { color: #ef4444; }\n  .ps-msg.ok { color: #10b981; }\n  @media (max-width: 600px) { .ps-station { grid-template-columns: 1fr; } }\n</style>\n<div class=\"ps-wrap\">\n  <h3>Preset storage</h3>\n  <div class=\"ps-row\">\n    <span style=\"color:#8b98a5;font-size:12px\">Target</span>\n    <select id=\"psTarget\" class=\"ps-select\" style=\"flex:1; min-width:200px\"></select>\n    <button class=\"ps-btn warn\" onclick=\"storeAllPresets()\">Store all 6 presets</button>\n  </div>\n  <div id=\"psButtons\"></div>\n  <div class=\"ps-row\"><span id=\"psMsg\" class=\"ps-msg\">Loading…</span></div>\n</div>\n<script>\nlet PS_CFG = { version: 1, speakers: {}, zones: {}, stations: {}, presets: {} };\nconst PS_KEYS = ['PRESET_1','PRESET_2','PRESET_3','PRESET_4','PRESET_5','PRESET_6'];\nfunction $(id) { return document.getElementById(id); }\nfunction setMsg(text, cls) { const el = $('psMsg'); el.textContent = text; el.className = 'ps-msg ' + (cls || ''); }\nasync function api(path, method='GET', body=null) {\n  const opts = { method, headers: {} };\n  if (body !== null) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }\n  const res = await fetch(path, opts);\n  const text = await res.text();\n  let data; try { data = JSON.parse(text); } catch { data = text; }\n  return { ok: res.ok, status: res.status, data };\n}\nfunction renderTargets() {\n  const sel = $('psTarget');\n  if (!sel) return;\n  const entries = [];\n  Object.entries(PS_CFG.speakers || {}).forEach(([id, sp]) => entries.push(['speaker:' + id, 'Speaker: ' + (sp.name || id)]));\n  Object.entries(PS_CFG.zones || {}).forEach(([id, z]) => entries.push(['zone:' + id, 'Zone: ' + (z.name || id)]));\n  sel.innerHTML = entries.map(([value, label]) => '<option value=\"' + value.replace(/\"/g, '&quot;') + '\">' + label.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c])) + '</option>').join('');\n}\nfunction renderButtons() {\n  const wrap = $('psButtons');\n  wrap.innerHTML = '';\n  PS_KEYS.forEach(k => {\n    const stationId = (PS_CFG.presets || {})[k];\n    if (!stationId) return;\n    const station = (PS_CFG.stations || {})[stationId] || { name: stationId };\n    const row = document.createElement('div');\n    row.className = 'ps-station';\n    const label = document.createElement('button');\n    label.className = 'ps-btn primary';\n    label.textContent = k.replace('PRESET_', 'P') + ': ' + (station.name || stationId);\n    label.onclick = () => storePreset(k);\n    const preset = document.createElement('span');\n    preset.className = 'ps-msg';\n    preset.textContent = stationId;\n    row.appendChild(label);\n    row.appendChild(preset);\n    row.appendChild(document.createElement('span'));\n    wrap.appendChild(row);\n  });\n}\nasync function loadConfig() {\n  const r = await api('/soundtouch/api/config');\n  if (!r.ok) { setMsg('Load failed', 'err'); return; }\n  PS_CFG = r.data;\n  renderTargets();\n  renderButtons();\n  setMsg('Loaded.', 'ok');\n}\nasync function storePreset(presetKey) {\n  const target = $('psTarget').value;\n  const r = await api('/soundtouch/api/preset/store', 'POST', { target, presetKey });\n  setMsg(r.ok ? ('Stored ' + presetKey) : ('Store failed: ' + (r.data && r.data.error ? r.data.error : r.status)), r.ok ? 'ok' : 'err');\n}\nasync function storeAllPresets() {\n  const target = $('psTarget').value;\n  const r = await api('/soundtouch/api/preset/store-all', 'POST', { target });\n  setMsg(r.ok ? 'Stored all 6 presets' : ('Store all failed: ' + (r.data && r.data.error ? r.data.error : r.status)), r.ok ? 'ok' : 'err');\n}\nloadConfig();\n</script>\n",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 220,
+        "y": 760,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "http_store_preset_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "store preset",
+        "url": "/soundtouch/api/preset/store",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 640,
+        "wires": [
+            [
+                "fn_store_preset"
+            ]
+        ]
+    },
+    {
+        "id": "fn_store_preset",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "store preset",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\nfunction buildStorePresetXml(presetId, station, piIp, proxyPort) {\n  const location = 'http://' + piIp + ':' + proxyPort + station.path;\n  return [\n    '<preset id=\"' + presetId + '\">',\n    '  <ContentItem source=\"LOCAL_INTERNET_RADIO\" type=\"stationurl\" location=\"' + location + '\">',\n    '    <itemName>' + (station.name || '') + '</itemName>',\n    '  </ContentItem>',\n    '</preset>',\n  ].join('\\n');\n}\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    const presetKey = body.presetKey;\n    if (!presetKey) throw new Error('Missing presetKey');\n    const stationId = (cfg.presets || {})[presetKey];\n    if (!stationId) throw new Error('Unknown preset ' + presetKey);\n    const station = (cfg.stations || {})[stationId];\n    if (!station) throw new Error('Preset ' + presetKey + ' points to missing station ' + stationId);\n    const speaker = target.speaker;\n    const piIp = env.get('PI_IP') || '10.0.0.241';\n    const proxyPort = env.get('PROXY_PORT') || 8091;\n    const presetId = presetKey.replace('PRESET_', '');\n    const xml = buildStorePresetXml(presetId, station, piIp, proxyPort);\n    const res = await fetch('http://' + speaker.ip + ':8090/storePreset', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/xml' },\n      body: xml,\n    });\n    const text = await res.text();\n    if (!res.ok) throw new Error('storePreset ' + res.status + ': ' + text);\n    msg.payload = { ok: true, target: body.target, presetKey, stationId, speaker: speaker.name || speaker.ip, result: text };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 640,
+        "wires": [
+            [
+                "http_store_preset_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_store_preset_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "http_store_all_presets_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "store all presets",
+        "url": "/soundtouch/api/preset/store-all",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 700,
+        "wires": [
+            [
+                "fn_store_all_presets"
+            ]
+        ]
+    },
+    {
+        "id": "fn_store_all_presets",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "store all presets",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\nfunction buildStorePresetXml(presetId, station, piIp, proxyPort) {\n  const location = 'http://' + piIp + ':' + proxyPort + station.path;\n  return [\n    '<preset id=\"' + presetId + '\">',\n    '  <ContentItem source=\"LOCAL_INTERNET_RADIO\" type=\"stationurl\" location=\"' + location + '\">',\n    '    <itemName>' + (station.name || '') + '</itemName>',\n    '  </ContentItem>',\n    '</preset>',\n  ].join('\\n');\n}\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    const speaker = target.speaker;\n    const piIp = env.get('PI_IP') || '10.0.0.241';\n    const proxyPort = env.get('PROXY_PORT') || 8091;\n    const results = [];\n    for (const presetKey of ['PRESET_1','PRESET_2','PRESET_3','PRESET_4','PRESET_5','PRESET_6']) {\n      const stationId = (cfg.presets || {})[presetKey];\n      if (!stationId) {\n        results.push({ presetKey, ok: false, error: 'unset' });\n        continue;\n      }\n      const station = (cfg.stations || {})[stationId];\n      if (!station) {\n        results.push({ presetKey, ok: false, error: 'missing station ' + stationId });\n        continue;\n      }\n      const presetId = presetKey.replace('PRESET_', '');\n      const xml = buildStorePresetXml(presetId, station, piIp, proxyPort);\n      const res = await fetch('http://' + speaker.ip + ':8090/storePreset', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/xml' },\n        body: xml,\n      });\n      const text = await res.text();\n      if (!res.ok) {\n        results.push({ presetKey, ok: false, stationId, error: 'storePreset ' + res.status + ': ' + text });\n      } else {\n        results.push({ presetKey, ok: true, stationId, result: text });\n      }\n      await new Promise(r => setTimeout(r, 200));\n    }\n    msg.payload = { ok: results.every(r => r.ok), target: body.target, speaker: speaker.name || speaker.ip, results };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 700,
+        "wires": [
+            [
+                "http_store_all_presets_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_store_all_presets_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 700,
+        "wires": []
     }
 ]
