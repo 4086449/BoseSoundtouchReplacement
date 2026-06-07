@@ -10,7 +10,7 @@ services:
     ports:
       - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
     volumes:
-      - radio-state:/app/state
+      - ${FOLDER}/radio-state:/app/state
     command: python /app/proxy/radio-proxy.py
 
   bose-bridge:
@@ -21,7 +21,7 @@ services:
     environment:
       - STATE_DIR=/app/state
     volumes:
-      - radio-state:/app/state
+      - ${FOLDER}/radio-state:/app/state
     depends_on:
       - radio-proxy
     command: python /app/bridge/bose-preset-bridge.py
@@ -44,4 +44,3 @@ services:
 
 volumes:
   nodered-data:
-  radio-state:
