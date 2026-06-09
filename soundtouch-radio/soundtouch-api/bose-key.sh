@@ -4,7 +4,7 @@
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ENV_FILE="$SCRIPT_DIR/../../.env"
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
-BOSE_IP="${BOSE_IP:-10.0.0.199}"
+BOSE_IP="${BOSE_IP:-10.0.0.216}"
 
 KEY="$1"
 

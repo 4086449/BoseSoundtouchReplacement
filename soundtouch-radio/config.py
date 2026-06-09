@@ -16,9 +16,9 @@ if _env_path.exists():
             if _key and _ == "=":
                 os.environ.setdefault(_key.strip(), _val.strip())
 
-BOSE_IP = os.environ.get("BOSE_IP", "10.0.0.199")
+BOSE_IP = os.environ.get("BOSE_IP", "10.0.0.216")
 PI_IP = os.environ.get("PI_IP", "10.0.0.241")
-SPEAKER_NAME = os.environ.get("SPEAKER_NAME", "Living Room")
+SPEAKER_NAME = os.environ.get("SPEAKER_NAME", "Portable")
 
 # Optional static zone display name for the single-speaker bridge.
 # Node-RED supports dynamic zones; this is only used by bose-preset-bridge.py.
