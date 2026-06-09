@@ -33,6 +33,11 @@ build/
 .env.local
 .env.*.local
 
+# Site-specific config (keep the .example tracked)
+soundtouch-radio/speakers.json
+soundtouch-radio/speakers.json.bak
+soundtouch-radio/status.json
+
 # Logs
 *.log
 logs/

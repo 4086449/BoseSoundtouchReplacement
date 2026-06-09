@@ -50,3 +50,18 @@ journalctl -u bose-preset-bridge.service -f
 ## Notes
 
 The service files assume the repo is cloned at `/home/pi/BoseSoundtouchReplacement`. If you clone elsewhere, edit the paths in the `.service` files before running `install.sh`.
+
+### Multi-speaker
+
+Both services pick up `soundtouch-radio/speakers.json` automatically; there
+is no per-speaker systemd unit. The bridge runs a single process that opens
+one WebSocket per enabled speaker and watches the file's mtime (polled every
+~2s) so changes saved from the Node-RED dashboard or written by hand take
+effect without restarting the service. If `speakers.json` is missing the
+bridge and proxy fall back to the single-speaker `.env` variables
+(`BOSE_IP`, `SPEAKER_NAME`, `ACTIVE_ZONE_NAME`).
+
+The bridge writes `soundtouch-radio/status.json` after every meaningful
+event and the proxy serves it (with computed `age_seconds` and a `stale`
+flag) at `GET /status`. `journalctl -u bose-preset-bridge.service -f` and
+`curl http://localhost:$PROXY_PORT/status` are two views of the same data.
