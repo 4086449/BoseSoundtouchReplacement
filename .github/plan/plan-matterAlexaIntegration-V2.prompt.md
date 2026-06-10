@@ -59,25 +59,25 @@ Fix the Node-RED Matter Bridge flow (HTTP request bug + payload bug), fix Docker
 
 ---
 
-## Phase 1: Branch Setup
+## ~~Phase 1: Branch Setup~~ ✗ Done
 1. Check out `feature/matter` branch
 2. Add flow added to the notes on BACKLOG.md to `nodered/data/flows.json`
 
-## Phase 2: Fix Docker Networking (docker-compose.yml)
+## ~~Phase 2: Fix Docker Networking (docker-compose.yml)~~ ✗ Done
 4. Change nodered service from bridge networking + port mapping to `network_mode: host`
    - Remove `ports: - "1880:1880"` (host mode makes this automatic)
    - Add `network_mode: host`
 5. Keep `matter-server` service in docker-compose.yml as-is
    - One-time HA setup: point HA's Matter integration at `ws://10.0.0.241:5580/ws` instead of its built-in server (Settings → Devices & Services → Matter → Configure → Use existing Matter server)
 
-## Phase 3: Fix the Matter Bridge flow (nodered/data/flows.json)
+## ~~Phase 3: Fix the Matter Bridge flow (nodered/data/flows.json)~~ ✗ Done
 6. Fix function node — set payload correctly on msg1:
    `const msg1 = { payload: { "target": "speaker:portable", "station": "radio1" } };`
 7. Fix URL in http request node: `http://127.0.0.1:1880/soundtouch/api/play`
 8. Fix matterbridge config: change networkInterface from `wlan0` to `""` (auto) or keep `wlan0` with host networking
 9. Clarify + fix speaker target (portable vs living) — depends on hardware
 
-## Phase 4: Clear Old Commissioning State
+## ~~Phase 4: Clear Old Commissioning State~~ ✗ Done
 10. Delete all files in `nodered/matter/matterStorage/` (NOT the directory, just contents)
     - This clears the Apple Home pairing so HA can commission fresh
 

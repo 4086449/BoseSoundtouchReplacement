@@ -10,7 +10,7 @@ services:
     ports:
       - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
     volumes:
-      - ${FOLDER}/radio-state:/app/state
+      - ${FOLDER}/soundtouch-radio/radio-state:/app/state
     command: python /app/proxy/radio-proxy.py
 
   bose-bridge:
@@ -37,7 +37,7 @@ services:
     environment:
       - TZ=Europe/Amsterdam
       - PI_IP=${PI_IP:-10.0.0.241}
-      - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.199}
+      - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.216}
     volumes:
       - nodered-data:/data
     depends_on:
