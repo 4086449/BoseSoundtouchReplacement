@@ -80,7 +80,7 @@ nano .env
 Set your IP addresses:
 
 ```env
-FOLDER=/home/pi/BoseSoundtouchReplacement/soundtouch-radio
+FOLDER=/home/pi/BoseSoundtouchReplacement
 PI_IP=10.0.0.241
 PROXY_PORT=8091
 PROXY_BIND_IP=0.0.0.0

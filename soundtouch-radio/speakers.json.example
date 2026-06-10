@@ -1,9 +1,9 @@
 {
   "version": 1,
   "speakers": {
-    "living": {
-      "name": "Living Room",
-      "ip": "10.0.0.199",
+    "portable": {
+      "name": "Portable",
+      "ip": "10.0.0.216",
       "device_id": "",
       "default_zone": "",
       "enabled": true
