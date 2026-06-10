@@ -38,6 +38,7 @@ services:
       - TZ=Europe/Amsterdam
       - PI_IP=${PI_IP:-10.0.0.241}
       - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.216}
+      - RADIO_PROXY_URL=http://localhost:${PROXY_PORT:-8091}
     volumes:
       - nodered-data:/data
     depends_on:
