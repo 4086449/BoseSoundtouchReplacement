@@ -1,0 +1,759 @@
+[
+    {
+        "id": "flow_soundtouch",
+        "type": "tab",
+        "label": "SoundTouch Radio Dashboard",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "f06252a0f612ee1d",
+        "type": "tab",
+        "label": "Matter Bridge",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "ui_base_main",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-dark",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false,
+                "reset": false
+            },
+            "darkTheme": {
+                "default": "#097479",
+                "baseColor": "#097479",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": true,
+                "reset": false
+            },
+            "customTheme": {
+                "name": "Untitled Theme 1",
+                "default": "#4B7930",
+                "baseColor": "#4B7930",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#097479",
+                    "value": "#097479",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#097479",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#111111",
+                    "edited": false
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#000000",
+                    "edited": false
+                },
+                "group-textColor": {
+                    "value": "#0eb8c0",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#555555",
+                    "edited": false
+                },
+                "group-backgroundColor": {
+                    "value": "#333333",
+                    "edited": false
+                },
+                "widget-textColor": {
+                    "value": "#eeeeee",
+                    "edited": false
+                },
+                "widget-backgroundColor": {
+                    "value": "#097479",
+                    "edited": false
+                },
+                "widget-borderColor": {
+                    "value": "#333333",
+                    "edited": false
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey",
+                "palette": "dark"
+            }
+        },
+        "site": {
+            "name": "Node-RED Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "ui_tab_soundtouch",
+        "type": "ui_tab",
+        "name": "SoundTouch",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "ui_group_main",
+        "type": "ui_group",
+        "name": "Radio",
+        "tab": "ui_tab_soundtouch",
+        "order": 1,
+        "disp": true,
+        "width": 12,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "a31d73f16a73aae4",
+        "type": "matterbridge",
+        "name": "myBridge",
+        "vendorId": "0xFFF1",
+        "productId": "0x8000",
+        "vendorName": "TestMatter",
+        "productName": "myTestBridge",
+        "storageLocation": "/data/.matter",
+        "networkInterface": "wlan0",
+        "logLevel": "ERROR"
+    },
+    {
+        "id": "ui_template_dashboard",
+        "type": "ui_template",
+        "z": "flow_soundtouch",
+        "group": "ui_group_main",
+        "name": "SoundTouch dashboard",
+        "order": 1,
+        "width": 12,
+        "height": 20,
+        "format": "\n<style>\n  :root {\n    --bg: #0f1419;\n    --card: #1a2128;\n    --card-2: #232c35;\n    --border: #2d3742;\n    --text: #e6edf3;\n    --text-dim: #8b98a5;\n    --accent: #3b82f6;\n    --accent-hover: #2563eb;\n    --danger: #ef4444;\n    --warn: #f59e0b;\n    --ok: #10b981;\n    --pending: #6b7280;\n  }\n  ui-card-panel, md-card { opacity: 1 !important; }\n  .st-wrap, .st-wrap * { box-sizing: border-box; }\n  .st-wrap { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; overflow: auto; padding: 12px; background: var(--bg); font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; color: var(--text); z-index: 10; }\n  .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }\n  .st-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }\n  .st-card h3 { margin: 0 0 10px 0; font-size: 15px; letter-spacing: .02em; color: var(--text); display: flex; align-items: center; gap: 8px; }\n  .st-card h4 { margin: 12px 0 6px 0; font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; }\n  .st-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }\n  .st-btn { min-height: 44px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-2); color: var(--text); cursor: pointer; font-size: 14px; }\n  .st-btn:hover { border-color: var(--accent); }\n  .st-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }\n  .st-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }\n  .st-btn.warn { background: rgba(245,158,11,.15); border-color: var(--warn); color: var(--warn); }\n  .st-btn.danger { background: rgba(239,68,68,.15); border-color: var(--danger); color: var(--danger); }\n  .st-btn.ghost { background: transparent; }\n  .st-btn.small { min-height: 32px; padding: 4px 10px; font-size: 12px; }\n  .st-input, .st-select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--text); font-size: 14px; min-width: 0; }\n  .st-input:focus, .st-select:focus { outline: none; border-color: var(--accent); }\n  .st-input.invalid { border-color: var(--danger); }\n  .st-hint { color: var(--danger); font-size: 12px; margin-top: 4px; }\n  .st-label { font-size: 12px; color: var(--text-dim); }\n  .st-table { width: 100%; border-collapse: collapse; }\n  .st-table th, .st-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }\n  .st-table th { color: var(--text-dim); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }\n  .st-table input, .st-table select { width: 100%; }\n  .st-pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: var(--card-2); font-size: 12px; color: var(--text-dim); }\n  .st-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--pending); flex-shrink: 0; }\n  .st-dot.ok { background: var(--ok); }\n  .st-dot.warn { background: var(--warn); }\n  .st-dot.err { background: var(--danger); }\n  .st-dot.dim { background: var(--pending); }\n  .st-checkbox { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }\n  .st-checkbox input { width: 18px; height: 18px; accent-color: var(--accent); }\n  .st-output { background: #0a0f14; color: #d4d9df; padding: 10px; border-radius: 6px; font-family: ui-monospace, \"SF Mono\", Menlo, monospace; font-size: 12px; max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; }\n  .st-savebar { position: sticky; bottom: 0; z-index: 10; background: linear-gradient(180deg, rgba(15,20,25,.6) 0%, rgba(15,20,25,.98) 50%); margin: 16px -14px -14px; padding: 14px; border-top: 1px solid var(--border); border-radius: 0 0 10px 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }\n  .st-savebar .st-spacer { flex: 1; }\n  .st-savebar .st-msg { font-size: 13px; color: var(--text-dim); }\n  .st-savebar .st-msg.err { color: var(--danger); }\n  .st-savebar .st-msg.ok { color: var(--ok); }\n  .st-errors { background: rgba(239,68,68,.1); border: 1px solid var(--danger); border-radius: 6px; padding: 8px 10px; margin: 8px 0; font-size: 13px; color: var(--danger); }\n  .st-errors ul { margin: 4px 0 0 18px; padding: 0; }\n  .st-status-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }\n  .st-status-row:last-child { border-bottom: none; }\n  .st-status-row .name { flex: 1; }\n  .st-status-row .meta { color: var(--text-dim); font-size: 12px; }\n  .st-stale { color: var(--warn); font-size: 12px; }\n  .st-presets { display: grid; grid-template-columns: 80px 1fr 32px; gap: 8px; align-items: center; }\n  .st-presets > * { margin: 0; }\n  @media (max-width: 600px) {\n    .st-table th, .st-table td { padding: 6px 4px; font-size: 12px; }\n  }\n  .st-np-list { display: flex; flex-direction: column; }\n  .st-np-empty { color: var(--text-dim); font-size: 13px; padding: 4px 0; }\n  .st-np-row { display: grid; grid-template-columns: 16px 56px 1.2fr 1.6fr; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }\n  .st-np-row:last-child { border-bottom: none; }\n  .st-np-logo { width: 56px; height: 56px; border-radius: 6px; object-fit: contain; background: rgba(255,255,255,.05); display: inline-block; }\n  .st-np-name { font-weight: 600; }\n  .st-np-meta { font-size: 12px; color: var(--text-dim); }\n  .st-np-sub { flex: 1; }\n  .st-np-ctrl { display: flex; gap: 6px; align-items: center; }\n  .st-np-state { width: 10px; height: 10px; border-radius: 50%; background: var(--text-dim); flex: 0 0 auto; }\n  .st-np-state.ok { background: var(--ok); }\n  .st-np-state.warn { background: var(--warn); }\n  .st-np-state.err { background: var(--danger); }\n  .st-np-state.pending { background: #3b82f6; animation: stpulse 1s infinite; }\n  @keyframes stpulse { 0% { opacity: 1 } 50% { opacity: .35 } 100% { opacity: 1 } }\n</style>\n\n<div class=\"st-wrap\">\n  <div class=\"st-grid\">\n\n    <div class=\"st-card\">\n      <h3>Play</h3>\n      <div class=\"st-row\"><span class=\"st-label\">Target</span>\n        <select id=\"target\" class=\"st-select\" style=\"flex:1; min-width:160px\"></select>\n      </div>\n      <div class=\"st-row\"><span class=\"st-label\">Station</span>\n        <select id=\"station\" class=\"st-select\" style=\"flex:1; min-width:160px\"></select>\n        <button class=\"st-btn primary\" onclick=\"playSelected()\">Play</button>\n      </div>\n      <h4>Presets</h4>\n      <div id=\"presetButtons\" class=\"st-row\"></div>\n    </div>\n\n    <div class=\"st-card\">\n      <h3>Speaker controls</h3>\n      <div class=\"st-row\">\n        <button class=\"st-btn\" onclick=\"sendKey('VOLUME_UP')\">Vol +</button>\n        <button class=\"st-btn\" onclick=\"sendKey('VOLUME_DOWN')\">Vol -</button>\n        <button class=\"st-btn\" onclick=\"sendKey('MUTE')\">Mute</button>\n        <button class=\"st-btn\" onclick=\"sendKey('PLAY_PAUSE')\">Play/Pause</button>\n        <button class=\"st-btn warn\" onclick=\"sendKey('POWER')\">Power</button>\n      </div>\n      <h4>Zone</h4>\n      <div class=\"st-row\">\n        <button class=\"st-btn\" onclick=\"applySelectedZone()\">Apply zone</button>\n        <button class=\"st-btn danger\" onclick=\"dissolveSelected()\">Dissolve</button>\n      </div>\n    </div>\n\n    <div class=\"st-card\">\n      <h3>Custom stream</h3>\n      <div class=\"st-row\">\n        <input id=\"customName\" class=\"st-input\" value=\"Custom Stream\" placeholder=\"Display name\" style=\"flex:1; min-width:140px\">\n      </div>\n      <div class=\"st-row\">\n        <input id=\"customUrl\" class=\"st-input\" placeholder=\"https://example.com/live.mp3\" style=\"flex:1; min-width:200px\">\n      </div>\n      <div class=\"st-row\">\n        <label class=\"st-checkbox\"><input id=\"customProxy\" type=\"checkbox\" checked> proxy via Pi</label>\n        <span class=\"st-spacer\"></span>\n        <button class=\"st-btn primary\" onclick=\"playCustom()\">Play custom</button>\n      </div>\n    </div>\n\n    <div class=\"st-card\">\n      <h3><span class=\"st-dot\" id=\"statusDot\"></span> Bridge status</h3>\n      <div id=\"statusList\"></div>\n      <div class=\"st-row\" style=\"margin-top:10px\">\n        <span id=\"statusStale\" class=\"st-stale\"></span>\n        <span class=\"st-spacer\"></span>\n        <button class=\"st-btn small ghost\" onclick=\"loadStatus()\">Refresh</button>\n      </div>\n    </div>\n\n  </div>\n\n  <div class=\"st-card\" style=\"margin-top:12px\">\n    <h3>Now playing</h3>\n    <div id=\"nowPlayingList\" class=\"st-np-list\"><div class=\"st-np-empty\">Waiting for bridge…</div></div>\n  </div>\n\n  <div class=\"st-card\" style=\"margin-top:12px\">\n    <h3>Speakers, zones, stations &amp; presets</h3>\n    <div id=\"errors\" class=\"st-errors\" style=\"display:none\"></div>\n\n    <h4>Speakers</h4>\n    <table class=\"st-table\">\n      <thead><tr><th>ID</th><th>Name</th><th>IP</th><th>Device ID</th><th>Default zone</th><th>Enabled</th><th></th></tr></thead>\n      <tbody id=\"speakersTable\"></tbody>\n    </table>\n    <div class=\"st-row\">\n      <button class=\"st-btn small\" onclick=\"addSpeaker()\">+ Speaker</button>\n      <button class=\"st-btn small\" onclick=\"discoverIds()\">Discover device IDs</button>\n    </div>\n\n    <h4>Zones</h4>\n    <table class=\"st-table\">\n      <thead><tr><th>ID</th><th>Name</th><th>Master</th><th>Members</th><th></th></tr></thead>\n      <tbody id=\"zonesTable\"></tbody>\n    </table>\n    <div class=\"st-row\"><button class=\"st-btn small\" onclick=\"addZone()\">+ Zone</button></div>\n\n    <h4>Stations</h4>\n    <table class=\"st-table\">\n      <thead><tr><th>ID</th><th>Name</th><th>Owner</th><th>Path</th><th>Upstream</th><th>Logo</th><th></th></tr></thead>\n      <tbody id=\"stationsTable\"></tbody>\n    </table>\n    <div class=\"st-row\"><button class=\"st-btn small\" onclick=\"addStation()\">+ Station</button></div>\n\n    <h4>Presets</h4>\n    <div id=\"presetsForm\"></div>\n\n    <div class=\"st-savebar\">\n      <span id=\"saveMsg\" class=\"st-msg\">Loaded.</span>\n      <span class=\"st-spacer\"></span>\n      <button class=\"st-btn ghost\" onclick=\"loadConfig()\">Reload</button>\n      <button class=\"st-btn ghost\" onclick=\"openDocs()\">API docs &nearr;</button>\n      <button class=\"st-btn primary\" onclick=\"saveConfig()\">Save</button>\n    </div>\n  </div>\n\n  <div class=\"st-card\" style=\"margin-top:12px\">\n    <h3>Last response</h3>\n    <pre id=\"output\" class=\"st-output\">(idle)</pre>\n  </div>\n</div>\n\n<script>\nlet CFG = { version: 1, speakers: {}, zones: {}, stations: {}, presets: {} };\nconst PRESET_KEYS = [\"PRESET_1\",\"PRESET_2\",\"PRESET_3\",\"PRESET_4\",\"PRESET_5\",\"PRESET_6\"];\n\nfunction $(id) { return document.getElementById(id); }\nfunction setOutput(v) { $('output').textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); }\nfunction setSaveMsg(text, cls) { const el = $('saveMsg'); el.textContent = text; el.className = 'st-msg ' + (cls || ''); }\nfunction setErrors(list) {\n  const el = $('errors');\n  if (!list || !list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }\n  el.style.display = 'block';\n  el.innerHTML = '<strong>Validation failed:</strong><ul>' + list.map(e => '<li>' + e.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;') + '</li>').join('') + '</ul>';\n}\n\nasync function api(path, method='GET', body=null) {\n  const opts = { method, headers: {} };\n  if (body !== null) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }\n  const res = await fetch(path, opts);\n  const text = await res.text();\n  let data; try { data = JSON.parse(text); } catch { data = text; }\n  return { ok: res.ok, status: res.status, data };\n}\n\nfunction openDocs() {\n  const proxyPort = (window.STC_PROXY_PORT) || 8091;\n  window.open(`http://${location.hostname}:${proxyPort}/docs`, '_blank');\n}\n\n// ---- collectors / renderers ---------------------------------------------\n\nfunction collectFromTables() {\n  const speakers = {};\n  document.querySelectorAll('#speakersTable tr').forEach(tr => {\n    const id = tr.querySelector('[data-f=id]').value.trim();\n    if (!id) return;\n    speakers[id] = {\n      name: tr.querySelector('[data-f=name]').value.trim(),\n      ip: tr.querySelector('[data-f=ip]').value.trim(),\n      device_id: tr.querySelector('[data-f=device_id]').value.trim(),\n      default_zone: tr.querySelector('[data-f=default_zone]').value.trim(),\n      enabled: tr.querySelector('[data-f=enabled]').checked,\n    };\n  });\n  const zones = {};\n  document.querySelectorAll('#zonesTable tr').forEach(tr => {\n    const id = tr.querySelector('[data-f=id]').value.trim();\n    if (!id) return;\n    const members = tr.querySelector('[data-f=members]').value.split(',').map(s => s.trim()).filter(Boolean);\n    zones[id] = {\n      name: tr.querySelector('[data-f=name]').value.trim(),\n      master: tr.querySelector('[data-f=master]').value.trim(),\n      members,\n    };\n  });\n  const stations = {};\n  document.querySelectorAll('#stationsTable tr').forEach(tr => {\n    const id = tr.querySelector('[data-f=id]').value.trim();\n    if (!id) return;\n    const prev = CFG.stations[id] || {};\n    stations[id] = {\n      name: tr.querySelector('[data-f=name]').value.trim(),\n      owner: tr.querySelector('[data-f=owner]').value.trim(),\n      path: tr.querySelector('[data-f=path]').value.trim(),\n      upstream: tr.querySelector('[data-f=upstream]').value.trim(),\n      logo: tr.querySelector('[data-f=logo]').value.trim(),\n      live_metadata: prev.live_metadata || { enabled: true, source: 'icy', endpoint: '/metadata/' + id + '.json' },\n    };\n  });\n  const presets = {};\n  PRESET_KEYS.forEach(k => {\n    const sel = document.querySelector(`[data-preset=\"${k}\"]`);\n    if (sel && sel.value) presets[k] = sel.value;\n  });\n  return { version: 1, speakers, zones, stations, presets };\n}\n\nfunction renderSpeakers() {\n  const tb = $('speakersTable'); tb.innerHTML = '';\n  const zoneIds = Object.keys(CFG.zones || {});\n  Object.entries(CFG.speakers || {}).forEach(([id, sp]) => {\n    const tr = document.createElement('tr');\n    tr.innerHTML = `\n      <td><input data-f=id class=st-input value=\"${attr(id)}\"></td>\n      <td><input data-f=name class=st-input value=\"${attr(sp.name || '')}\"></td>\n      <td><input data-f=ip class=st-input value=\"${attr(sp.ip || '')}\"></td>\n      <td><input data-f=device_id class=st-input value=\"${attr(sp.device_id || '')}\" placeholder=\"auto\"></td>\n      <td>${zoneSelect('default_zone', sp.default_zone || '', zoneIds)}</td>\n      <td><label class=st-checkbox><input data-f=enabled type=checkbox ${sp.enabled === false ? '' : 'checked'}></label></td>\n      <td>\n        <button class=\"st-btn small\" title=\"Discover device ID for this IP\" onclick=\"discoverOne('${attr(id)}', this)\">find ID</button>\n        <button class=\"st-btn small danger\" onclick=\"this.closest('tr').remove()\">×</button>\n      </td>`;\n    tb.appendChild(tr);\n  });\n}\n\nfunction renderZones() {\n  const tb = $('zonesTable'); tb.innerHTML = '';\n  const speakerIds = Object.keys(CFG.speakers || {});\n  Object.entries(CFG.zones || {}).forEach(([id, z]) => {\n    const tr = document.createElement('tr');\n    tr.innerHTML = `\n      <td><input data-f=id class=st-input value=\"${attr(id)}\"></td>\n      <td><input data-f=name class=st-input value=\"${attr(z.name || '')}\"></td>\n      <td>${speakerSelect('master', z.master || '', speakerIds)}</td>\n      <td><input data-f=members class=st-input value=\"${attr((z.members || []).join(', '))}\" placeholder=\"speaker-id, speaker-id\"></td>\n      <td><button class=\"st-btn small danger\" onclick=\"this.closest('tr').remove()\">×</button></td>`;\n    tb.appendChild(tr);\n  });\n}\n\nfunction renderStations() {\n  const tb = $('stationsTable'); tb.innerHTML = '';\n  Object.entries(CFG.stations || {}).forEach(([id, st]) => {\n    const tr = document.createElement('tr');\n    tr.innerHTML = `\n      <td><input data-f=id class=st-input value=\"${attr(id)}\"></td>\n      <td><input data-f=name class=st-input value=\"${attr(st.name || '')}\"></td>\n      <td><input data-f=owner class=st-input value=\"${attr(st.owner || '')}\"></td>\n      <td><input data-f=path class=st-input value=\"${attr(st.path || '')}\" placeholder=\"/foo.mp3\"></td>\n      <td><input data-f=upstream class=st-input value=\"${attr(st.upstream || '')}\" placeholder=\"https://...\"></td>\n      <td><div class=\"st-np-ctrl\"><input data-f=logo class=st-input style=\"flex:1\" value=\"${attr(st.logo || '')}\" placeholder=\"/logos/foo.png or https://...\"><button type=\"button\" class=\"st-btn small ghost\" onclick=\"uploadLogo(this)\" title=\"Upload\">↑</button><button type=\"button\" class=\"st-btn small ghost\" onclick=\"browseLogos(this)\" title=\"Browse\">…</button></div></td>\n      <td><button class=\"st-btn small danger\" onclick=\"this.closest('tr').remove()\">×</button></td>`;\n    tb.appendChild(tr);\n  });\n}\n\nfunction renderPresets() {\n  const wrap = $('presetsForm'); wrap.innerHTML = '';\n  const stationIds = Object.keys(CFG.stations || {});\n  PRESET_KEYS.forEach(k => {\n    const row = document.createElement('div');\n    row.className = 'st-presets';\n    const current = (CFG.presets || {})[k] || '';\n    row.innerHTML = `\n      <span class=\"st-label\">${k}</span>\n      ${stationSelectByName('preset-' + k, current, stationIds, k)}\n      <span></span>`;\n    wrap.appendChild(row);\n  });\n}\n\nfunction renderPlayWidgets() {\n  const tgt = $('target'); tgt.innerHTML = '';\n  Object.entries(CFG.speakers || {}).forEach(([id, sp]) => addOpt(tgt, 'speaker:' + id, 'Speaker: ' + (sp.name || id)));\n  Object.entries(CFG.zones || {}).forEach(([id, z]) => addOpt(tgt, 'zone:' + id, 'Zone: ' + (z.name || id)));\n  const stn = $('station'); stn.innerHTML = '';\n  Object.entries(CFG.stations || {}).forEach(([id, st]) => addOpt(stn, id, st.name || id));\n  const pb = $('presetButtons'); pb.innerHTML = '';\n  PRESET_KEYS.forEach(k => {\n    const sid = (CFG.presets || {})[k]; if (!sid) return;\n    const st = (CFG.stations || {})[sid] || { name: sid };\n    const b = document.createElement('button'); b.className = 'st-btn'; b.textContent = k.replace('PRESET_', 'P') + ': ' + st.name;\n    b.onclick = () => playStation(sid);\n    pb.appendChild(b);\n  });\n}\n\nfunction renderAll() {\n  renderSpeakers(); renderZones(); renderStations(); renderPresets(); renderPlayWidgets();\n  if (typeof renderNowPlaying === 'function') renderNowPlaying();\n}\n\n// ---- helpers ------------------------------------------------------------\n\nfunction attr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/\"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\nfunction addOpt(sel, value, label) { const o = document.createElement('option'); o.value = value; o.textContent = label; sel.appendChild(o); }\nfunction zoneSelect(field, current, zoneIds) {\n  const opts = ['<option value=\"\">(none)</option>'].concat(zoneIds.map(id => `<option value=\"${attr(id)}\" ${id === current ? 'selected' : ''}>${attr(id)}</option>`));\n  return `<select data-f=${field} class=st-select>${opts.join('')}</select>`;\n}\nfunction speakerSelect(field, current, speakerIds) {\n  const opts = ['<option value=\"\">--</option>'].concat(speakerIds.map(id => `<option value=\"${attr(id)}\" ${id === current ? 'selected' : ''}>${attr(id)}</option>`));\n  return `<select data-f=${field} class=st-select>${opts.join('')}</select>`;\n}\nfunction stationSelectByName(name, current, stationIds, presetKey) {\n  const opts = ['<option value=\"\">(unset)</option>'].concat(stationIds.map(id => `<option value=\"${attr(id)}\" ${id === current ? 'selected' : ''}>${attr(id)}</option>`));\n  return `<select data-preset=\"${attr(presetKey)}\" class=st-select>${opts.join('')}</select>`;\n}\n\nfunction addSpeaker() {\n  const id = newId('speaker', CFG.speakers);\n  CFG = collectFromTables();\n  CFG.speakers[id] = { name: '', ip: '', device_id: '', default_zone: '', enabled: true };\n  renderAll();\n}\nfunction addZone() {\n  const id = newId('zone', CFG.zones);\n  CFG = collectFromTables();\n  CFG.zones[id] = { name: '', master: '', members: [] };\n  renderAll();\n}\nfunction addStation() {\n  const id = newId('station', CFG.stations);\n  CFG = collectFromTables();\n  CFG.stations[id] = { name: '', owner: '', path: '/' + id + '.mp3', upstream: '', logo: '', live_metadata: { enabled: true, source: 'icy', endpoint: '/metadata/' + id + '.json' } };\n  renderAll();\n}\nfunction newId(prefix, existing) {\n  let i = 1; while (existing[`${prefix}${i}`]) i++; return `${prefix}${i}`;\n}\n\n// ---- API actions --------------------------------------------------------\n\nasync function loadConfig() {\n  setSaveMsg('Loading…');\n  const r = await api('/soundtouch/api/config');\n  if (!r.ok) { setSaveMsg('Load failed', 'err'); setOutput(r.data); return; }\n  CFG = r.data; renderAll(); setErrors([]); setSaveMsg('Loaded.'); setOutput(r.data);\n}\n\nasync function saveConfig() {\n  const payload = collectFromTables();\n  setSaveMsg('Saving…');\n  const r = await api('/soundtouch/api/config', 'POST', payload);\n  if (!r.ok) {\n    setSaveMsg('Save failed', 'err');\n    setErrors((r.data && r.data.errors) || ['HTTP ' + r.status]);\n    setOutput(r.data);\n    return;\n  }\n  CFG = (r.data && r.data.config) || payload;\n  renderAll(); setErrors([]); setSaveMsg('Saved.', 'ok'); setOutput(r.data);\n}\n\nasync function discoverIds() {\n  setSaveMsg('Discovering…');\n  const r = await api('/soundtouch/api/discover', 'POST', {});\n  if (!r.ok) { setSaveMsg('Discover failed', 'err'); setOutput(r.data); return; }\n  CFG = (r.data && r.data.config) || CFG;\n  renderAll(); setSaveMsg(r.data && r.data.changed ? 'Discovered new IDs.' : 'Nothing new.', 'ok'); setOutput(r.data);\n}\n\nasync function discoverOne(speakerId, btn) {\n  btn.disabled = true; const orig = btn.textContent; btn.textContent = '…';\n  try {\n    const r = await api('/soundtouch/api/discover', 'POST', {});\n    if (r.ok && r.data && r.data.config) {\n      CFG = r.data.config; renderAll();\n    }\n    setOutput(r.data);\n  } finally { btn.disabled = false; btn.textContent = orig; }\n}\n\nasync function playStation(stationId) {\n  const target = $('target').value;\n  const r = await api('/soundtouch/api/play', 'POST', { target, station: stationId });\n  setOutput(r.data);\n}\nasync function playSelected() { await playStation($('station').value); }\nasync function playCustom() {\n  const target = $('target').value;\n  const r = await api('/soundtouch/api/play', 'POST', {\n    target, customUrl: $('customUrl').value, name: $('customName').value || 'Custom Stream',\n    useProxy: $('customProxy').checked,\n  });\n  setOutput(r.data);\n}\nasync function sendKey(key) {\n  const target = $('target').value;\n  const r = await api('/soundtouch/api/key', 'POST', { target, key });\n  setOutput(r.data);\n}\nasync function applySelectedZone() {\n  const target = $('target').value;\n  const r = await api('/soundtouch/api/zone/apply', 'POST', { target });\n  setOutput(r.data);\n}\nasync function dissolveSelected() {\n  const target = $('target').value;\n  const r = await api('/soundtouch/api/zone/dissolve', 'POST', { target });\n  setOutput(r.data);\n}\n\nlet PROXY_BASE = `http://${location.hostname}:${(window.STC_PROXY_PORT) || 8091}`;\nlet LAST_STATUS = null;\nlet OVERRIDES = {};\n\nasync function loadStatus() {\n  const r = await api('/soundtouch/api/status');\n  if (r.ok && r.data) { LAST_STATUS = r.data; renderStatus(LAST_STATUS); renderNowPlaying(); }\n  else { renderStatus(null); }\n}\n\nfunction renderStatus(data) {\n  const list = $('statusList'); list.innerHTML = '';\n  const dot = $('statusDot');\n  const stale = $('statusStale');\n  if (!data || !data.speakers) {\n    dot.className = 'st-dot err';\n    stale.textContent = 'unreachable';\n    return;\n  }\n  const speakers = data.speakers || {};\n  let worst = 'ok';\n  Object.entries(speakers).forEach(([sid, st]) => {\n    const row = document.createElement('div'); row.className = 'st-status-row';\n    const cls = st.state === 'connected' ? 'ok' : st.state === 'connecting' ? 'warn' : st.state === 'disabled' ? 'dim' : 'err';\n    if (cls === 'err') worst = 'err'; else if (cls === 'warn' && worst !== 'err') worst = 'warn';\n    const evt = st.last_event ? ' · ' + st.last_event : '';\n    const err = st.last_error ? ' · err: ' + st.last_error : '';\n    row.innerHTML = `<span class=\"st-dot ${cls}\"></span><span class=\"name\">${attr(sid)}</span><span class=\"meta\">${attr(st.state || '?')}${attr(evt)}${attr(err)}</span>`;\n    list.appendChild(row);\n  });\n  dot.className = 'st-dot ' + worst;\n  if (data.stale) { stale.textContent = `stale (${data.age_seconds == null ? '?' : Math.round(data.age_seconds)}s)`; }\n  else { stale.textContent = ''; }\n}\n\nfunction logoUrl(p) { if (!p) return ''; if (/^https?:/i.test(p)) return p; return PROXY_BASE + (p.startsWith('/') ? p : '/' + p); }\n\nfunction renderNowPlaying() {\n  const wrap = $('nowPlayingList'); if (!wrap) return;\n  if (!LAST_STATUS) { wrap.innerHTML = '<div class=\"st-np-empty\">Waiting for bridge…</div>'; return; }\n  const speakers = LAST_STATUS.speakers || {};\n  if (!Object.keys(speakers).length) {\n    const stale = LAST_STATUS.stale ? ' (status is stale — is the bridge running?)' : '';\n    wrap.innerHTML = '<div class=\"st-np-empty\">No speakers reported by bridge' + stale + '.</div>';\n    return;\n  }\n  const stations = (CFG && CFG.stations) || {};\n  const spkCfg = (CFG && CFG.speakers) || {};\n  const focused = document.activeElement;\n  const focusedSid = focused && focused.dataset && focused.dataset.npSpeaker;\n  const focusedVal = focusedSid ? focused.value : null;\n  const selStart = focusedSid ? focused.selectionStart : null;\n  const selEnd = focusedSid ? focused.selectionEnd : null;\n  wrap.innerHTML = '';\n  Object.entries(speakers).forEach(([sid, st]) => {\n    const sname = (spkCfg[sid] && spkCfg[sid].name) || sid;\n    const stnId = st.current_station || '';\n    const station = stations[stnId] || {};\n    const displayName = station.name || st.current_station_name || stnId || '';\n    const logo = station.logo || st.current_logo || '';\n    const ov = OVERRIDES[sid] || {};\n    const ovCls = ov.state === 'applied' ? 'ok' : ov.state === 'pending' ? 'pending' : (ov.state === 'mismatch' || ov.state === 'timeout' || ov.state === 'error') ? 'err' : '';\n    const subVal = focusedSid === sid ? focusedVal : (st.current_subtitle || '');\n    const row = document.createElement('div'); row.className = 'st-np-row';\n    const sCls = st.state === 'connected' ? 'ok' : st.state === 'connecting' ? 'warn' : st.state === 'disabled' ? 'dim' : 'err';\n    row.innerHTML = `\n      <span class=\"st-dot ${sCls}\"></span>\n      ${logo ? `<img class=\"st-np-logo\" src=\"${attr(logoUrl(logo))}\" alt=\"\">` : `<span class=\"st-np-logo\"></span>`}\n      <div>\n        <div class=\"st-np-name\">${attr(sname)}</div>\n        <div class=\"st-np-meta\">${attr(displayName || '—')}</div>\n      </div>\n      <div class=\"st-np-ctrl\">\n        <input class=\"st-input st-np-sub\" data-np-speaker=\"${attr(sid)}\" value=\"${attr(subVal)}\" placeholder=\"(default subtitle)\">\n        <span class=\"st-np-state ${ovCls}\" title=\"${attr(ov.state || '')}\"></span>\n        <button type=\"button\" class=\"st-btn small ghost\" onclick=\"refreshNowPlaying('${attr(sid)}', this)\" title=\"Pull /now_playing from speaker\">⟳</button>\n        <button type=\"button\" class=\"st-btn small ghost\" onclick=\"clearOverride('${attr(sid)}')\" title=\"Clear override\">×</button>\n      </div>`;\n    wrap.appendChild(row);\n    const input = row.querySelector('input.st-np-sub');\n    if (focusedSid === sid) { input.focus(); try { input.setSelectionRange(selStart || 0, selEnd || 0); } catch (_) {} }\n    let timer;\n    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => submitOverride(sid, input.value), 400); });\n    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); submitOverride(sid, input.value); } });\n  });\n}\n\nasync function submitOverride(sid, text) {\n  try {\n    await fetch(`${PROXY_BASE}/overrides/${encodeURIComponent(sid)}`, {\n      method: 'PUT', headers: {'Content-Type': 'application/json'},\n      body: JSON.stringify({ text })\n    });\n  } catch (e) { console.error('submitOverride', e); }\n}\n\nasync function clearOverride(sid) {\n  try { await fetch(`${PROXY_BASE}/overrides/${encodeURIComponent(sid)}`, { method: 'DELETE' }); }\n  catch (e) { console.error('clearOverride', e); }\n}\n\nasync function refreshNowPlaying(sid, btn) {\n  if (btn) { btn.disabled = true; btn.textContent = '…'; }\n  try {\n    await fetch(`${PROXY_BASE}/now_playing/${encodeURIComponent(sid)}/refresh`, { method: 'POST' });\n  } catch (e) { console.error('refreshNowPlaying', e); }\n  finally { if (btn) { btn.disabled = false; btn.textContent = '⟳'; } }\n}\n\nfunction pickFile(accept) {\n  return new Promise(resolve => {\n    const inp = document.createElement('input');\n    inp.type = 'file'; inp.accept = accept || '*/*';\n    inp.onchange = () => resolve(inp.files && inp.files[0]);\n    inp.click();\n  });\n}\n\nasync function uploadLogo(btn) {\n  const input = btn.parentElement.querySelector('[data-f=logo]');\n  if (!input) return;\n  const file = await pickFile('image/*');\n  if (!file) return;\n  const fd = new FormData(); fd.append('file', file);\n  try {\n    const res = await fetch(`${PROXY_BASE}/logos`, { method: 'POST', body: fd });\n    const j = await res.json().catch(() => ({}));\n    if (res.ok && j && j.path) {\n      input.value = j.path;\n      const tr = btn.closest('tr');\n      const idInput = tr && tr.querySelector('[data-f=id]');\n      const sid = idInput && idInput.value.trim();\n      if (sid && CFG.stations && CFG.stations[sid]) {\n        CFG.stations[sid].logo = j.path;\n        if (typeof renderNowPlaying === 'function') renderNowPlaying();\n      }\n      setSaveMsg('Logo uploaded — click Save to persist.', 'ok');\n    }\n    else alert('Upload failed: ' + ((j && j.detail) || res.status));\n  } catch (e) { alert('Upload error: ' + e); }\n}\n\nasync function browseLogos(btn) {\n  const input = btn.parentElement.querySelector('[data-f=logo]');\n  if (!input) return;\n  try {\n    const res = await fetch(`${PROXY_BASE}/logos`);\n    const j = await res.json();\n    const list = (j && j.logos) || [];\n    if (!list.length) { alert('No uploaded logos yet.'); return; }\n    const choice = window.prompt('Pick a logo path:\\n' + list.map((p,i)=>`${i+1}. ${p}`).join('\\n'), list[0]);\n    if (choice) input.value = choice;\n  } catch (e) { alert('Browse error: ' + e); }\n}\n\nfunction setupSSE() {\n  let backoff = 1000;\n  function connect() {\n    let es;\n    try { es = new EventSource(`${PROXY_BASE}/events`); }\n    catch (e) { setTimeout(connect, backoff); backoff = Math.min(backoff*2, 30000); return; }\n    es.addEventListener('status', e => { try { LAST_STATUS = JSON.parse(e.data); renderStatus(LAST_STATUS); renderNowPlaying(); } catch (_) {} });\n    es.addEventListener('override', e => { try { OVERRIDES = JSON.parse(e.data) || {}; renderNowPlaying(); } catch (_) {} });\n    es.addEventListener('metadata', () => renderNowPlaying());\n    es.addEventListener('config', e => { try { CFG = JSON.parse(e.data); renderAll(); renderNowPlaying(); } catch (_) {} });\n    es.onopen = () => { backoff = 1000; };\n    es.onerror = () => { try { es.close(); } catch (_) {} setTimeout(connect, backoff); backoff = Math.min(backoff*2, 30000); };\n  }\n  connect();\n  fetch(`${PROXY_BASE}/overrides`).then(r => r.json()).then(d => { OVERRIDES = d || {}; renderNowPlaying(); }).catch(() => {});\n}\n\nfunction fixPanelSize() {\n  const w = document.querySelector('.st-wrap');\n  if (!w) return;\n  let p = w.parentElement;\n  while (p && p.tagName !== 'UI-CARD-PANEL') p = p.parentElement;\n  if (!p) return;\n  const h = w.offsetHeight + 40;\n  p.style.height = h + 'px';\n  p.style.minHeight = h + 'px';\n  // also size the intermediate divs collapsed by failed refreshLayout\n  let n = p.firstElementChild;\n  while (n) {\n    if (n.offsetHeight === 0 && getComputedStyle(n).display !== 'none') {\n      n.style.height = h + 'px';\n    }\n    n = n.firstElementChild;\n  }\n}\nsetTimeout(fixPanelSize, 200);\nsetTimeout(fixPanelSize, 1000);\nwindow.addEventListener('resize', fixPanelSize);\nnew MutationObserver(fixPanelSize).observe(document.querySelector('.st-wrap'), {childList:true, subtree:true});\n\nloadConfig();\nloadStatus();\nsetupSSE();\n</script>\n",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 220,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "http_get_config_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "get config",
+        "url": "/soundtouch/api/config",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 160,
+        "wires": [
+            [
+                "fn_get_config"
+            ]
+        ]
+    },
+    {
+        "id": "fn_get_config",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "get config",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\n(async () => {\n  try {\n    invalidateCfg();\n    const cfg = await fetchCfg();\n    msg.payload = cfg; node.send(msg);\n  } catch (e) {\n    msg.statusCode = 502; msg.payload = { ok: false, errors: [e.message || String(e)] }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 160,
+        "wires": [
+            [
+                "http_get_config_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_get_config_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "http_save_config_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "save config",
+        "url": "/soundtouch/api/config",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 220,
+        "wires": [
+            [
+                "fn_save_config"
+            ]
+        ]
+    },
+    {
+        "id": "fn_save_config",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "save config",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\n(async () => {\n  try {\n    const res = await fetch(proxyBase() + '/config', {\n      method: 'PUT',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(msg.payload || {}),\n    });\n    const text = await res.text();\n    let data; try { data = JSON.parse(text); } catch { data = text; }\n    invalidateCfg();\n    msg.statusCode = res.status;\n    msg.payload = data;\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 502; msg.payload = { ok: false, errors: [e.message || String(e)] }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 220,
+        "wires": [
+            [
+                "http_save_config_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_save_config_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "http_discover_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "discover",
+        "url": "/soundtouch/api/discover",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 280,
+        "wires": [
+            [
+                "fn_discover"
+            ]
+        ]
+    },
+    {
+        "id": "fn_discover",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "discover",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\n(async () => {\n  try {\n    const res = await fetch(proxyBase() + '/config/discover', { method: 'POST' });\n    const text = await res.text();\n    let data; try { data = JSON.parse(text); } catch { data = text; }\n    invalidateCfg();\n    msg.statusCode = res.status;\n    msg.payload = data;\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 502; msg.payload = { ok: false, errors: [e.message || String(e)] }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 280,
+        "wires": [
+            [
+                "http_discover_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_discover_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "http_status_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "status",
+        "url": "/soundtouch/api/status",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 340,
+        "wires": [
+            [
+                "fn_status"
+            ]
+        ]
+    },
+    {
+        "id": "fn_status",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "status",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\n(async () => {\n  try {\n    const res = await fetch(proxyBase() + '/status');\n    const text = await res.text();\n    let data; try { data = JSON.parse(text); } catch { data = text; }\n    msg.statusCode = res.status;\n    msg.payload = data;\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 502; msg.payload = { ok: false, errors: [e.message || String(e)] }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 340,
+        "wires": [
+            [
+                "http_status_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_status_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "http_play_station_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "play station",
+        "url": "/soundtouch/api/play",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 400,
+        "wires": [
+            [
+                "fn_play_station"
+            ]
+        ]
+    },
+    {
+        "id": "fn_play_station",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "play station",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\nfunction xmlEscape(s) {\n  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\n\nfunction liveMetadataSubtitle(meta, maxAge) {\n  if (!meta || !meta.updated_at) return '';\n  const age = (Date.now() / 1000) - Number(meta.updated_at);\n  if (!Number.isFinite(age) || age > maxAge) return '';\n  if (meta.artist && meta.title) return meta.artist + ' - ' + meta.title;\n  return meta.raw || '';\n}\nfunction chooseSubtitle(cfg, stationKey, station, target) {\n  const live = global.get('liveMetadata') || {};\n  const candidates = {\n    live_metadata: liveMetadataSubtitle(live[stationKey], 45),\n    zone_name: target.zoneName || (target.speaker && target.speaker.default_zone ? ((cfg.zones[target.speaker.default_zone] || {}).name || target.speaker.default_zone) : ''),\n    speaker_name: (target.speaker && target.speaker.name) || target.id || '',\n    station_owner: station.owner || ''\n  };\n  const priority = ['live_metadata', 'zone_name', 'speaker_name', 'station_owner'];\n  for (const s of priority) { if (candidates[s]) return { subtitle: candidates[s], source: s }; }\n  return { subtitle: '', source: 'empty' };\n}\nfunction logoUrl(piIp, station) {\n  if (!station || !station.logo) return '';\n  if (station.logo.startsWith('http://') || station.logo.startsWith('https://')) return station.logo;\n  return 'http://' + piIp + ':' + (env.get('PROXY_PORT') || 8091) + station.logo;\n}\nasync function fetchMetadata(piIp, stationKey, station) {\n  if (!station || !station.live_metadata || !station.live_metadata.enabled || !station.live_metadata.endpoint) return;\n  try {\n    const res = await fetch('http://' + piIp + ':' + (env.get('PROXY_PORT') || 8091) + station.live_metadata.endpoint);\n    if (!res.ok) return;\n    const data = await res.json();\n    const live = global.get('liveMetadata') || {};\n    live[stationKey] = data;\n    global.set('liveMetadata', live);\n  } catch (e) {}\n}\nasync function soap(ip, action, innerXml) {\n  const envelope = '<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body>' + innerXml + '</s:Body></s:Envelope>';\n  const res = await fetch('http://' + ip + ':8091/AVTransport/Control', {\n    method: 'POST',\n    headers: { 'Content-Type': 'text/xml; charset=\"utf-8\"', 'SOAPACTION': '\"urn:schemas-upnp-org:service:AVTransport:1#' + action + '\"' },\n    body: envelope,\n  });\n  const text = await res.text();\n  if (!res.ok) throw new Error(action + ' failed on ' + ip + ': ' + res.status + ': ' + text);\n  return text;\n}\nasync function applyZone(cfg, zoneId) {\n  const zone = cfg.zones[zoneId];\n  const master = cfg.speakers[zone.master];\n  if (!master.device_id) throw new Error('Master speaker needs device_id; run discover');\n  const members = (zone.members || []).map(id => ({ id, speaker: cfg.speakers[id] })).filter(x => x.speaker);\n  for (const m of members) { if (!m.speaker.device_id) throw new Error('Zone member ' + m.id + ' needs device_id'); }\n  const membersXml = members.map(m => '<member ipaddress=\"' + xmlEscape(m.speaker.ip) + '\">' + xmlEscape(m.speaker.device_id) + '</member>').join('');\n  const body = '<zone master=\"' + xmlEscape(master.device_id) + '\">' + membersXml + '</zone>';\n  const res = await fetch('http://' + master.ip + ':8090/setZone', { method: 'POST', headers: { 'Content-Type': 'text/xml' }, body });\n  const text = await res.text();\n  if (!res.ok) throw new Error('setZone ' + res.status + ': ' + text);\n  return { master: zone.master, members: members.map(m => m.id), result: text };\n}\nasync function playOnSpeaker(speaker, name, streamUrl, display) {\n  const subtitleXml = display.subtitle ? '<dc:creator>' + xmlEscape(display.subtitle) + '</dc:creator><upnp:artist>' + xmlEscape(display.subtitle) + '</upnp:artist>' : '';\n  const albumXml = display.album ? '<upnp:album>' + xmlEscape(display.album) + '</upnp:album>' : '';\n  const artXml = display.logo ? '<upnp:albumArtURI>' + xmlEscape(display.logo) + '</upnp:albumArtURI>' : '';\n  const didl = '<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"' + xmlEscape(name) + '\" parentID=\"0\" restricted=\"1\"><dc:title>' + xmlEscape(name) + '</dc:title>' + subtitleXml + albumXml + artXml + '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3\">' + xmlEscape(streamUrl) + '</res></item></DIDL-Lite>';\n  await soap(speaker.ip, 'SetAVTransportURI', '<u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>' + xmlEscape(streamUrl) + '</CurrentURI><CurrentURIMetaData>' + xmlEscape(didl) + '</CurrentURIMetaData></u:SetAVTransportURI>');\n  await new Promise(r => setTimeout(r, 300));\n  await soap(speaker.ip, 'Play', '<u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play>');\n}\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const piIp = env.get('PI_IP') || '10.0.0.241';\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    let zoneResult = null;\n    if (target.type === 'zone') {\n      zoneResult = await applyZone(cfg, target.id);\n      await new Promise(r => setTimeout(r, 700));\n    }\n    let name, streamUrl, station = {}, stationKey = '';\n    if (body.customUrl) {\n      name = body.name || 'Custom Stream';\n      station = { name, owner: 'Custom', logo: body.logo || '' };\n      streamUrl = body.useProxy === false ? body.customUrl : ('http://' + piIp + ':' + (env.get('PROXY_PORT') || 8091) + '/proxy.mp3?url=' + encodeURIComponent(body.customUrl));\n    } else {\n      stationKey = body.station; station = cfg.stations[stationKey];\n      if (!station) throw new Error('Unknown station ' + body.station);\n      name = station.name; streamUrl = 'http://' + piIp + ':' + (env.get('PROXY_PORT') || 8091) + station.path;\n      await fetchMetadata(piIp, stationKey, station);\n    }\n    const choice = chooseSubtitle(cfg, stationKey, station, target);\n    const display = { title: name, subtitle: choice.subtitle, subtitle_source: choice.source, logo: body.logo || logoUrl(piIp, station), album: 'Live Radio' };\n    await playOnSpeaker(target.speaker, name, streamUrl, display);\n    msg.payload = { ok: true, target: body.target, name, streamUrl, display, zoneResult };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 400,
+        "wires": [
+            [
+                "http_play_station_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_play_station_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "http_send_key_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "send key",
+        "url": "/soundtouch/api/key",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 460,
+        "wires": [
+            [
+                "fn_send_key"
+            ]
+        ]
+    },
+    {
+        "id": "fn_send_key",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "send key",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\nfunction xmlEscape(s) {\n  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\n\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    const speaker = target.speaker;\n    const key = body.key; if (!key) throw new Error('Missing key');\n    const headers = { 'Content-Type': 'application/xml' };\n    const press = await fetch('http://' + speaker.ip + ':8090/key', { method: 'POST', headers, body: '<key state=\"press\" sender=\"Gabbo\">' + key + '</key>' }).then(r => r.text());\n    await new Promise(r => setTimeout(r, 200));\n    const release = await fetch('http://' + speaker.ip + ':8090/key', { method: 'POST', headers, body: '<key state=\"release\" sender=\"Gabbo\">' + key + '</key>' }).then(r => r.text());\n    msg.payload = { ok: true, key, speaker: speaker.name || speaker.ip, press, release };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 460,
+        "wires": [
+            [
+                "http_send_key_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_send_key_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "http_apply_zone_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "apply zone",
+        "url": "/soundtouch/api/zone/apply",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 520,
+        "wires": [
+            [
+                "fn_apply_zone"
+            ]
+        ]
+    },
+    {
+        "id": "fn_apply_zone",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "apply zone",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\nfunction xmlEscape(s) {\n  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\n\nasync function applyZone(cfg, zoneId) {\n  const zone = cfg.zones[zoneId];\n  const master = cfg.speakers[zone.master];\n  if (!master.device_id) throw new Error('Master speaker needs device_id; run discover');\n  const members = (zone.members || []).map(id => ({ id, speaker: cfg.speakers[id] })).filter(x => x.speaker);\n  for (const m of members) { if (!m.speaker.device_id) throw new Error('Zone member ' + m.id + ' needs device_id'); }\n  const membersXml = members.map(m => '<member ipaddress=\"' + xmlEscape(m.speaker.ip) + '\">' + xmlEscape(m.speaker.device_id) + '</member>').join('');\n  const body = '<zone master=\"' + xmlEscape(master.device_id) + '\">' + membersXml + '</zone>';\n  const res = await fetch('http://' + master.ip + ':8090/setZone', { method: 'POST', headers: { 'Content-Type': 'text/xml' }, body });\n  const text = await res.text();\n  if (!res.ok) throw new Error('setZone ' + res.status + ': ' + text);\n  return { master: zone.master, members: members.map(m => m.id), result: text };\n}\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    if (target.type !== 'zone') throw new Error('Apply zone needs a zone target');\n    const zoneResult = await applyZone(cfg, target.id);\n    msg.payload = { ok: true, target: body.target, zoneResult };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 520,
+        "wires": [
+            [
+                "http_apply_zone_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_apply_zone_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "http_dissolve_zone_in",
+        "type": "http in",
+        "z": "flow_soundtouch",
+        "name": "dissolve zone",
+        "url": "/soundtouch/api/zone/dissolve",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 580,
+        "wires": [
+            [
+                "fn_dissolve_zone"
+            ]
+        ]
+    },
+    {
+        "id": "fn_dissolve_zone",
+        "type": "function",
+        "z": "flow_soundtouch",
+        "name": "dissolve zone",
+        "func": "const fetch = global.get('fetch');\n\nasync function fetchCfg() {\n  const cached = flow.get('cfgCache');\n  if (cached && (Date.now() - cached.at) < 10000) return cached.cfg;\n  const base = env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091';\n  const res = await fetch(base + '/config');\n  if (!res.ok) throw new Error('fetchCfg ' + res.status);\n  const cfg = await res.json();\n  flow.set('cfgCache', { at: Date.now(), cfg });\n  return cfg;\n}\nfunction invalidateCfg() { flow.set('cfgCache', null); }\nfunction proxyBase() { return env.get('RADIO_PROXY_URL') || 'http://radio-proxy:8091'; }\n\nfunction xmlEscape(s) {\n  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');\n}\nfunction resolveTarget(cfg, target) {\n  if (!target) throw new Error('Missing target');\n  if (target.startsWith('speaker:')) {\n    const id = target.slice(8); const speaker = cfg.speakers[id];\n    if (!speaker) throw new Error('Unknown speaker ' + id);\n    return { type: 'speaker', id, speaker, zoneName: '' };\n  }\n  if (target.startsWith('zone:')) {\n    const id = target.slice(5); const zone = cfg.zones[id];\n    if (!zone) throw new Error('Unknown zone ' + id);\n    const master = cfg.speakers[zone.master];\n    if (!master) throw new Error('Unknown zone master ' + zone.master);\n    return { type: 'zone', id, zone, speaker: master, speakerId: zone.master, zoneName: zone.name || id };\n  }\n  throw new Error('Target must start with speaker: or zone:');\n}\n\n(async () => {\n  try {\n    const cfg = await fetchCfg();\n    const body = msg.payload || {};\n    const target = resolveTarget(cfg, body.target);\n    const speaker = target.speaker;\n    if (!speaker.device_id) throw new Error('Speaker needs device_id to dissolve zone');\n    const xml = '<zone master=\"' + xmlEscape(speaker.device_id) + '\"></zone>';\n    const res = await fetch('http://' + speaker.ip + ':8090/setZone', { method: 'POST', headers: { 'Content-Type': 'text/xml' }, body: xml });\n    const text = await res.text();\n    if (!res.ok) throw new Error(res.status + ': ' + text);\n    msg.payload = { ok: true, speaker: speaker.name || speaker.ip, result: text };\n    node.send(msg);\n  } catch (e) {\n    msg.statusCode = 500; msg.payload = { ok: false, error: e.message || String(e) }; node.send(msg);\n  }\n})();\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 580,
+        "wires": [
+            [
+                "http_dissolve_zone_res"
+            ]
+        ]
+    },
+    {
+        "id": "http_dissolve_zone_res",
+        "type": "http response",
+        "z": "flow_soundtouch",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 540,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "2b5f0563d9d18a15",
+        "type": "debug",
+        "z": "f06252a0f612ee1d",
+        "name": "Matter on/off",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 555,
+        "y": 120,
+        "wires": [],
+        "l": false
+    },
+    {
+        "id": "11b5a12d04cc980f",
+        "type": "http request",
+        "z": "f06252a0f612ee1d",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://10.0.0.241:1880/soundtouch/api/play",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "Content-Type",
+                "valueType": "other",
+                "valueValue": "application/json"
+            }
+        ],
+        "x": 750,
+        "y": 140,
+        "wires": [
+            [
+                "18b5b3e384a04c12"
+            ]
+        ]
+    },
+    {
+        "id": "4525dc86e656fc9b",
+        "type": "delay",
+        "z": "f06252a0f612ee1d",
+        "name": "Reset (momentary switch)",
+        "pauseType": "delay",
+        "timeout": "500",
+        "timeoutUnits": "milliseconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 675,
+        "y": 180,
+        "wires": [
+            [
+                "dec60c945cf18720"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "c92531e4b2a66751",
+        "type": "function",
+        "z": "f06252a0f612ee1d",
+        "name": "function 2",
+        "func": "const state = msg.payload.state || false; \nconst msg1 = { payload: {\"target\":\"speaker:portable\",\"station\":\"radio1\" }};\nconst msg2 = { payload: false };\n\nif (state === true) {\n    return [msg1,msg2];\n} else if (String(state).toLowerCase() === 'true') {\n    return [msg1, msg2];\n}\nreturn [null,null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 595,
+        "y": 180,
+        "wires": [
+            [
+                "11b5a12d04cc980f",
+                "b5c8f10c064a2239"
+            ],
+            [
+                "4525dc86e656fc9b",
+                "de242a5011a678b5"
+            ]
+        ],
+        "l": false
+    },
+    {
+        "id": "b5c8f10c064a2239",
+        "type": "debug",
+        "z": "f06252a0f612ee1d",
+        "name": "Matter on",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 655,
+        "y": 120,
+        "wires": [],
+        "l": false
+    },
+    {
+        "id": "604f611e5d98e608",
+        "type": "inject",
+        "z": "f06252a0f612ee1d",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "true",
+        "payloadType": "bool",
+        "x": 210,
+        "y": 120,
+        "wires": [
+            [
+                "dec60c945cf18720"
+            ]
+        ]
+    },
+    {
+        "id": "dec60c945cf18720",
+        "type": "matteronoffsocket",
+        "z": "f06252a0f612ee1d",
+        "name": "Portable preset 1",
+        "bridge": "a31d73f16a73aae4",
+        "passthrough": "true",
+        "bat": "false",
+        "topic": "",
+        "x": 410,
+        "y": 180,
+        "wires": [
+            [
+                "2b5f0563d9d18a15",
+                "c92531e4b2a66751"
+            ]
+        ]
+    },
+    {
+        "id": "de242a5011a678b5",
+        "type": "debug",
+        "z": "f06252a0f612ee1d",
+        "name": "Matter delay off",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 655,
+        "y": 240,
+        "wires": [],
+        "l": false
+    },
+    {
+        "id": "18b5b3e384a04c12",
+        "type": "debug",
+        "z": "f06252a0f612ee1d",
+        "name": "Matter on",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 885,
+        "y": 140,
+        "wires": [],
+        "l": false
+    },
+    {
+        "id": "3afc3735feb4111f",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6",
+            "@sammachin/node-red-matter-bridge": "0.12.3"
+        }
+    }
+]
