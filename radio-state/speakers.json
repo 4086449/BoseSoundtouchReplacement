@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "speakers": {
+    "living": {
+      "name": "Living",
+      "ip": "192.168.168.165",
+      "device_id": "F0B5D12ABDC8",
+      "default_zone": "",
+      "enabled": true
+    },
+    "ten": {
+      "name": "Ten",
+      "ip": "192.168.168.253",
+      "device_id": "B0D5CCC84C89",
+      "default_zone": "",
+      "enabled": true
+    },
+    "kitchen": {
+      "name": "Kitchen",
+      "ip": "192.168.168.125",
+      "device_id": "FC6947207280",
+      "default_zone": "",
+      "enabled": true
+    },
+    "badkamer": {
+      "name": "Badkamer",
+      "ip": "192.168.168.122",
+      "device_id": "000C8AC19FAA",
+      "default_zone": "",
+      "enabled": true
+    },
+    "portable": {
+      "name": "Portable",
+      "ip": "192.168.168.117",
+      "device_id": "08DF1F144940",
+      "default_zone": "",
+      "enabled": true
+    }
+  },
+  "zones": {
+    "KitchenLiving": {
+      "name": "KitchenLiving",
+      "master": "kitchen",
+      "members": [
+        "living"
+      ]
+    },
+    "KitchenBuiten": {
+      "name": "KitchenBuiten",
+      "master": "kitchen",
+      "members": [
+        "living",
+        "portable",
+        "ten"
+      ]
+    }
+  },
+  "stations": {
+    "radio1": {
+      "name": "VRT Radio 1",
+      "owner": "VRT",
+      "path": "/radio1.mp3",
+      "upstream": "http://icecast.vrtcdn.be/radio1-high.mp3",
+      "logo": "/logos/radio1.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/radio1.json"
+      }
+    },
+    "radio2-limburg": {
+      "name": "VRT Radio 2 Limburg",
+      "owner": "VRT",
+      "path": "/radio2-limburg.mp3",
+      "upstream": "http://icecast.vrtcdn.be/ra2lim-high.mp3",
+      "logo": "/logos/radio2-limburg.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/radio2-limburg.json"
+      }
+    },
+    "stubru": {
+      "name": "VRT Studio Brussel",
+      "owner": "VRT",
+      "path": "/stubru.mp3",
+      "upstream": "http://icecast.vrtcdn.be/stubru-high.mp3",
+      "logo": "/logos/stubru.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/stubru.json"
+      }
+    },
+    "joe": {
+      "name": "Joe",
+      "owner": "DPG Media",
+      "path": "/joe.mp3",
+      "upstream": "https://streams.radio.dpgmedia.cloud/redirect/joe_fm/mp3",
+      "logo": "/logos/joe.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/joe.json"
+      }
+    },
+    "nostalgie": {
+      "name": "Nostalgie Vlaanderen",
+      "owner": "Nostalgie",
+      "path": "/nostalgie.mp3",
+      "upstream": "https://playerservices.streamtheworld.com/api/livestream-redirect/NOSTALGIEWHATAFEELING.mp3",
+      "logo": "/logos/nostalgie.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/nostalgie.json"
+      }
+    },
+    "joe-gold": {
+      "name": "JOE Gold",
+      "owner": "DPG Media",
+      "path": "/joe-gold.mp3",
+      "upstream": "https://streams.radio.dpgmedia.cloud/redirect/joe_gold/mp3",
+      "logo": "/logos/joe-gold.png",
+      "live_metadata": {
+        "enabled": true,
+        "source": "icy",
+        "endpoint": "/metadata/joe-gold.json"
+      }
+    }
+  },
+  "presets": {
+    "PRESET_1": "radio1",
+    "PRESET_2": "radio2-limburg",
+    "PRESET_3": "stubru",
+    "PRESET_4": "joe",
+    "PRESET_5": "nostalgie",
+    "PRESET_6": "joe-gold"
+  }
+}

@@ -37,6 +37,7 @@ build/
 soundtouch-radio/speakers.json
 soundtouch-radio/speakers.json.bak
 soundtouch-radio/status.json
+matter/
 
 # Logs
 *.log

@@ -28,7 +28,7 @@ services:
 
   nodered:
     build: ./nodered
-    container_name: soundtouch-node-red
+    container_name: nodered
     restart: unless-stopped
     # ports:
     #   - "1880:1880"
@@ -57,6 +57,17 @@ services:
     restart: unless-stopped
     # If you adjust command line, make sure to pass the default CMD arguments too:
     #command: --storage-path /data --paa-root-cert-dir /data/credentials --bluetooth-adapter 0
+
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    ports:
+      - 1883:1883
+#    networks:
+#      - node-red-net
+    volumes:
+      - ${FOLDER}/nodered/mosquitto:/mosquitto
+    restart: unless-stopped
 
 volumes:
   nodered-data:

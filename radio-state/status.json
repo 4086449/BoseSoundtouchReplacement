@@ -1,0 +1,62 @@
+{
+  "updated_at": 1781302396.4125714,
+  "speakers": {
+    "living": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781298071.8342633,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": "",
+      "last_event": "standby"
+    },
+    "ten": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781292849.1397865,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": ""
+    },
+    "kitchen": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781293881.5015724,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": "",
+      "last_event": "standby"
+    },
+    "badkamer": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781292849.0354617,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": ""
+    },
+    "portable": {
+      "state": "error",
+      "last_error": "[Errno 113] Connect call failed ('192.168.168.117', 8080)",
+      "backoff_seconds": 60,
+      "last_event_at": 1781302396.4125626,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": ""
+    }
+  }
+}

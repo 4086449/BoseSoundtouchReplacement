@@ -4,6 +4,9 @@ module.exports = {
     credentialSecret: process.env.NODE_RED_CREDENTIAL_SECRET || 'change-me-soundtouch-radio',
     contextStorage: {
         default: {
+            module: 'localfilesystem'
+        },
+        memoryOnly: {
             module: 'memory'
         }
     },

@@ -1,0 +1,53 @@
+{
+  "updated_at": 1781802429.7693233,
+  "speakers": {
+    "living": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781783736.5202804,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": "",
+      "last_event": "standby"
+    },
+    "ten": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781796026.2645342,
+      "current_station": "",
+      "current_station_name": "JOE Gold",
+      "current_logo": "http://192.168.168.158:8091/logos/joe-gold.png",
+      "current_subtitle": "Living Room",
+      "current_override": "",
+      "last_event": "play joe-gold via PRESET_6"
+    },
+    "kitchen": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781802429.7693155,
+      "current_station": "",
+      "current_station_name": "JOE Gold",
+      "current_logo": "http://192.168.168.20:8091/logos/joe-gold.png",
+      "current_subtitle": "Kitchen",
+      "current_override": "",
+      "last_event": "play joe-gold via PRESET_6"
+    },
+    "badkamer": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1781768409.8254325,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": "",
+      "last_event": "standby"
+    }
+  }
+}
