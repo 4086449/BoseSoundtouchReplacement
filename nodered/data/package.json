@@ -4,6 +4,7 @@
   "private": true,
   "description": "Node-RED dashboard and API for Bose SoundTouch radio control",
   "dependencies": {
+    "node-red-dashboard": "^3.6.6",
     "@flowfuse/node-red-dashboard": "^1.30.2",
     "@sammachin/node-red-matter-bridge": "^0.12.3",
     "node-red-contrib-bigtimer": "2.8.6"
