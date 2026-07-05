@@ -10,7 +10,7 @@ services:
     ports:
       - "${PROXY_PORT:-8091}:${PROXY_PORT:-8091}"
     volumes:
-      - ${FOLDER}/radio-state:/app/state
+      - ${FOLDER}/soundtouch-radio/radio-state:/app/state
     command: python /app/proxy/radio-proxy.py
 
   bose-bridge:
@@ -21,7 +21,7 @@ services:
     environment:
       - STATE_DIR=/app/state
     volumes:
-      - ${FOLDER}/radio-state:/app/state
+      - ${FOLDER}/soundtouch-radio/radio-state:/app/state
     depends_on:
       - radio-proxy
     command: python /app/bridge/bose-preset-bridge.py
@@ -30,17 +30,33 @@ services:
     build: ./nodered
     container_name: soundtouch-node-red
     restart: unless-stopped
-    ports:
-      - "1880:1880"
+    # ports:
+    #   - "1880:1880"
+    network_mode: host
     env_file: .env
     environment:
       - TZ=Europe/Amsterdam
       - PI_IP=${PI_IP:-10.0.0.241}
-      - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.199}
+      - DEFAULT_BOSE_IP=${BOSE_IP:-10.0.0.216}
+      - RADIO_PROXY_URL=http://localhost:${PROXY_PORT:-8091}
     volumes:
       - nodered-data:/data
     depends_on:
       - radio-proxy
+
+  matter-server:
+    image: ghcr.io/matter-js/python-matter-server:stable
+    container_name: matter-server
+    network_mode: host
+    volumes:
+      - ${FOLDER}/nodered/matter:/data
+      # Required for Bluetooth via D-Bus
+      - /run/dbus:/run/dbus:ro
+    security_opt:
+      - apparmor=unconfined
+    restart: unless-stopped
+    # If you adjust command line, make sure to pass the default CMD arguments too:
+    #command: --storage-path /data --paa-root-cert-dir /data/credentials --bluetooth-adapter 0
 
 volumes:
   nodered-data:

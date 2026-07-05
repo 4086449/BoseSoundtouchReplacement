@@ -28,11 +28,12 @@ if _env_path.exists():
             if _key and _sep == "=":
                 os.environ.setdefault(_key.strip(), _val.strip())
 
-# Legacy single-speaker env vars. With speakers.json these become fallbacks
-# only; the shell scripts in soundtouch-api/ still rely on BOSE_IP/PI_IP.
-BOSE_IP = os.environ.get("BOSE_IP", "10.0.0.199")
+BOSE_IP = os.environ.get("BOSE_IP", "10.0.0.216")
 PI_IP = os.environ.get("PI_IP", "10.0.0.241")
-SPEAKER_NAME = os.environ.get("SPEAKER_NAME", "Living Room")
+SPEAKER_NAME = os.environ.get("SPEAKER_NAME", "Portable")
+
+# Optional static zone display name for the single-speaker bridge.
+# Node-RED supports dynamic zones; this is only used by bose-preset-bridge.py.
 ACTIVE_ZONE_NAME = os.environ.get("ACTIVE_ZONE_NAME", "")
 PROXY_BIND_IP = os.environ.get("PROXY_BIND_IP", "0.0.0.0")
 PROXY_PORT = int(os.environ.get("PROXY_PORT", "8091"))

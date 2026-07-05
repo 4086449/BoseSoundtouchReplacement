@@ -80,7 +80,7 @@ nano .env
 Set your IP addresses:
 
 ```env
-FOLDER=/home/pi/BoseSoundtouchReplacement/soundtouch-radio
+FOLDER=/home/pi/BoseSoundtouchReplacement
 PI_IP=10.0.0.241
 PROXY_PORT=8091
 PROXY_BIND_IP=0.0.0.0
@@ -183,6 +183,118 @@ Quick play preset 1:
 ```bash
 soundtouch-radio/soundtouch-api/play-bose-upnp.sh
 ```
+
+---
+
+## Bose SoundTouch local API commands
+
+Bose SoundTouch speakers expose a local HTTP API on port `8090`. Bose's
+official 2026 SoundTouch Web API documentation is here:
+<https://assets.bosecreative.com/m/496577402d128874/original/SoundTouch-Web-API.pdf>
+
+This project currently uses the `/key`, `/setZone`, `/info`, `/now_playing`,
+and `/presets` endpoints directly, plus UPnP AVTransport on port `8091` for
+reliable custom stream playback.
+
+### Key values for `POST /key`
+
+Send keys as a press followed by a release:
+
+```bash
+curl -s -X POST "http://BOSE_IP:8090/key" \
+  -H "Content-Type: application/xml" \
+  --data-binary '<key state="press" sender="Gabbo">PLAY_PAUSE</key>'
+
+curl -s -X POST "http://BOSE_IP:8090/key" \
+  -H "Content-Type: application/xml" \
+  --data-binary '<key state="release" sender="Gabbo">PLAY_PAUSE</key>'
+```
+
+Known key values:
+
+| Key | Meaning |
+|---|---|
+| `PLAY` | Start playback |
+| `PAUSE` | Pause playback |
+| `STOP` | Stop playback |
+| `PREV_TRACK` | Previous track |
+| `NEXT_TRACK` | Next track |
+| `THUMBS_UP` | Like/rate up, source-dependent |
+| `THUMBS_DOWN` | Dislike/rate down, source-dependent |
+| `BOOKMARK` | Bookmark, source-dependent |
+| `POWER` | Toggle power/standby |
+| `MUTE` | Toggle mute |
+| `VOLUME_UP` | Raise volume one step |
+| `VOLUME_DOWN` | Lower volume one step |
+| `PRESET_1` | Select hardware preset 1 |
+| `PRESET_2` | Select hardware preset 2 |
+| `PRESET_3` | Select hardware preset 3 |
+| `PRESET_4` | Select hardware preset 4 |
+| `PRESET_5` | Select hardware preset 5 |
+| `PRESET_6` | Select hardware preset 6 |
+| `AUX_INPUT` | Select AUX input |
+| `SHUFFLE_OFF` | Disable shuffle |
+| `SHUFFLE_ON` | Enable shuffle |
+| `REPEAT_OFF` | Disable repeat |
+| `REPEAT_ONE` | Repeat one |
+| `REPEAT_ALL` | Repeat all |
+| `PLAY_PAUSE` | Toggle play/pause |
+| `ADD_FAVORITE` | Add favorite, source-dependent |
+| `REMOVE_FAVORITE` | Remove favorite, source-dependent |
+| `INVALID_KEY` | Documented sentinel, not useful as a command |
+
+### Set volume to a numeric value
+
+Yes. Absolute volume is supported, but it is not a `/key` value. Use
+`POST /volume` with an integer from `0` through `100`:
+
+```bash
+curl -s -X POST "http://10.0.0.216:8090/volume" \
+  -H "Content-Type: application/xml" \
+  --data-binary '<volume>50</volume>'
+```
+
+Read the current target/actual volume and mute state:
+
+```bash
+curl -s "http://10.0.0.216:8090/volume"
+```
+
+Set mute explicitly:
+
+```bash
+curl -s -X POST "http://10.0.0.216:8090/volume" \
+  -H "Content-Type: application/xml" \
+  --data-binary '<volume><muteenabled>true</muteenabled></volume>'
+```
+
+The native speaker API is XML over HTTP, so a JSON shape like
+`{"volume": 50}` or `volume: 50` would need to be translated by our proxy or
+Node-RED before sending it to the Bose.
+
+### Other local SoundTouch API endpoints
+
+| Endpoint | Methods | Purpose |
+|---|---|---|
+| `/key` | `POST` | Send one of the key values above |
+| `/select` | `POST` | Select a source such as `AUX`, `BLUETOOTH`, or product inputs |
+| `/sources` | `GET` | List available sources for this product/account |
+| `/bassCapabilities` | `GET` | Report whether bass control is supported and its range |
+| `/bass` | `GET`, `POST` | Read or set bass |
+| `/getZone` | `GET` | Read current multi-room zone membership |
+| `/setZone` | `POST` | Create or replace a multi-room zone |
+| `/addZoneSlave` | `POST` | Add a speaker to a zone |
+| `/removeZoneSlave` | `POST` | Remove a speaker from a zone |
+| `/now_playing` | `GET` | Read current source, metadata and play state; firmware also accepts `/nowPlaying` |
+| `/trackInfo` | `GET` | Read current track metadata |
+| `/volume` | `GET`, `POST` | Read or set absolute volume and mute |
+| `/presets` | `GET` | List stored presets |
+| `/info` | `GET` | Read device name, ID, type, network and version info |
+| `/name` | `POST` | Set the device name |
+| `/capabilities` | `GET` | List optional product-specific API capabilities |
+| `/audiodspcontrols` | `GET`, `POST` | Optional audio mode / video sync controls |
+| `/audioproducttonecontrols` | `GET`, `POST` | Optional bass and treble controls |
+| `/audioproductlevelcontrols` | `GET`, `POST` | Optional center/surround level controls |
 
 ---
 
