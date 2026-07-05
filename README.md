@@ -302,9 +302,15 @@ Node-RED before sending it to the Bose.
 
 The hardware bridge needs the Bose to emit preset selection events. On some firmware versions, this requires something to be stored in each hardware preset slot.
 
-It is okay if the stored Bose preset itself is broken. The bridge only uses the button press event and then overrides playback with UPnP.
+You can do this from the dashboard now:
 
-Store a dummy preset:
+- pick a speaker or zone target in the preset storage card
+- use a per-preset `Store` button to write a single slot
+- use `Store all 6 presets` to write every mapped slot in order
+
+The dashboard writes the Bose's native preset slots using the local proxy URL for each mapped station. It is okay if the stored Bose preset itself is broken or still shows `INVALID_SOURCE`; the bridge only uses the button press event and then overrides playback with UPnP.
+
+If you prefer curl, you can still store a dummy preset manually:
 
 ```bash
 curl -X POST "http://BOSE_IP:8090/storePreset" \
@@ -384,6 +390,7 @@ The dashboard lets you dynamically edit:
 - the speakers map
 - Bose zones/groups
 - preset-to-station playback
+- preset storage on Bose hardware buttons
 - volume, mute, play/pause, and power controls
 - custom stream URL playback
 
