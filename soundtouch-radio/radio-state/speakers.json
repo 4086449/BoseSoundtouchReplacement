@@ -3,7 +3,7 @@
   "speakers": {
     "living": {
       "name": "Living",
-      "ip": "192.168.168.165",
+      "ip": "192.168.168.169",
       "device_id": "F0B5D12ABDC8",
       "default_zone": "",
       "enabled": true
@@ -28,6 +28,13 @@
       "device_id": "000C8AC19FAA",
       "default_zone": "",
       "enabled": true
+    },
+    "portable": {
+      "name": "Portable",
+      "ip": "192.168.168.116",
+      "device_id": "08DF1F144940",
+      "default_zone": "",
+      "enabled": true
     }
   },
   "zones": {
@@ -45,6 +52,14 @@
         "living",
         "portable",
         "ten"
+      ]
+    },
+    "Kitchen": {
+      "name": "KItchenPortable",
+      "master": "kitchen",
+      "members": [
+        "living",
+        "portable"
       ]
     }
   },

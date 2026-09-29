@@ -1,11 +1,11 @@
 {
-  "updated_at": 1781802429.7693233,
+  "updated_at": 1790696729.0421956,
   "speakers": {
     "living": {
       "state": "connected",
       "last_error": "",
       "backoff_seconds": 0,
-      "last_event_at": 1781783736.5202804,
+      "last_event_at": 1790695634.2437155,
       "current_station": "",
       "current_station_name": "",
       "current_logo": "",
@@ -17,37 +17,47 @@
       "state": "connected",
       "last_error": "",
       "backoff_seconds": 0,
-      "last_event_at": 1781796026.2645342,
+      "last_event_at": 1790627669.4691913,
       "current_station": "",
-      "current_station_name": "JOE Gold",
-      "current_logo": "http://192.168.168.158:8091/logos/joe-gold.png",
-      "current_subtitle": "Living Room",
-      "current_override": "",
-      "last_event": "play joe-gold via PRESET_6"
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": ""
     },
     "kitchen": {
       "state": "connected",
       "last_error": "",
       "backoff_seconds": 0,
-      "last_event_at": 1781802429.7693155,
-      "current_station": "",
-      "current_station_name": "JOE Gold",
-      "current_logo": "http://192.168.168.20:8091/logos/joe-gold.png",
-      "current_subtitle": "Kitchen",
-      "current_override": "",
-      "last_event": "play joe-gold via PRESET_6"
-    },
-    "badkamer": {
-      "state": "connected",
-      "last_error": "",
-      "backoff_seconds": 0,
-      "last_event_at": 1781768409.8254325,
+      "last_event_at": 1790696729.042181,
       "current_station": "",
       "current_station_name": "",
       "current_logo": "",
       "current_subtitle": "",
       "current_override": "",
       "last_event": "standby"
+    },
+    "badkamer": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1790690902.2522087,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": "",
+      "last_event": "standby"
+    },
+    "portable": {
+      "state": "connected",
+      "last_error": "",
+      "backoff_seconds": 0,
+      "last_event_at": 1790692840.9256601,
+      "current_station": "",
+      "current_station_name": "",
+      "current_logo": "",
+      "current_subtitle": "",
+      "current_override": ""
     }
   }
 }
